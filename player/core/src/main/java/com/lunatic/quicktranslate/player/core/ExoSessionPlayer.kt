@@ -52,6 +52,11 @@ class ExoSessionPlayer(
     }
 
     override fun play() {
+        val duration = exoPlayer.duration
+        val nearEnd = duration > 0L && exoPlayer.currentPosition >= duration - 300L
+        if (exoPlayer.playbackState == Player.STATE_ENDED || nearEnd) {
+            exoPlayer.seekTo(0L)
+        }
         exoPlayer.playWhenReady = true
         exoPlayer.play()
         publishState()
