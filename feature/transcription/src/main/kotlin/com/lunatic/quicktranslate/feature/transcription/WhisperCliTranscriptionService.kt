@@ -1,6 +1,8 @@
 package com.lunatic.quicktranslate.feature.transcription
 
 import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -8,10 +10,14 @@ class WhisperCliTranscriptionService(
     private val config: WhisperCliConfig
 ) : TranscriptionService {
     private val progressRegex = Regex("""progress\s*=\s*(\d{1,3})%""")
+    private val segmentRegex = Regex(
+        """^\[(\d{2}:\d{2}:\d{2}[.,]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[.,]\d{3})\]\s*(.*)$"""
+    )
 
     override suspend fun transcribe(
         mediaPath: String,
-        onProgress: ((Int) -> Unit)?
+        onProgress: ((Int) -> Unit)?,
+        onPartialResult: ((List<TranscriptionSegment>) -> Unit)?
     ): List<TranscriptionSegment> {
         require(mediaPath.isNotBlank()) { "Media path is required for transcription." }
         require(config.isValid) {
@@ -60,14 +66,39 @@ class WhisperCliTranscriptionService(
                     error
                 )
             }
+            val logReadDone = AtomicBoolean(false)
+            val partialFromStdout = AtomicReference<List<TranscriptionSegment>>(emptyList())
             val logsBuilder = StringBuilder()
-            process.inputStream.bufferedReader().use { reader ->
-                while (true) {
-                    val line = reader.readLine() ?: break
-                    logsBuilder.appendLine(line)
-                    parseProgress(line)?.let { onProgress?.invoke(it) }
+            val logThread = Thread {
+                process.inputStream.bufferedReader().use { reader ->
+                    while (true) {
+                        val line = reader.readLine() ?: break
+                        logsBuilder.appendLine(line)
+                        parseProgress(line)?.let { onProgress?.invoke(it) }
+                        parseSegmentLine(line)?.let { segment ->
+                            val updated = partialFromStdout.get() + segment
+                            partialFromStdout.set(updated)
+                            onPartialResult?.invoke(updated)
+                        }
+                    }
                 }
+                logReadDone.set(true)
+            }.apply { start() }
+
+            var emittedSignature = ""
+            while (process.isAlive) {
+                val partial = SrtParser.parse(resolveOutputSrt(outputBase, outputSrt))
+                val signature = buildSegmentsSignature(partial)
+                if (partial.isNotEmpty() && signature != emittedSignature) {
+                    emittedSignature = signature
+                    onPartialResult?.invoke(partial)
+                }
+                Thread.sleep(250L)
             }
+            while (!logReadDone.get()) {
+                Thread.sleep(20L)
+            }
+            logThread.join(1000L)
             val logs = logsBuilder.toString()
             val exitCode = process.waitFor()
             if (exitCode != 0) {
@@ -76,7 +107,22 @@ class WhisperCliTranscriptionService(
                 )
             }
             val resolvedSrt = resolveOutputSrt(outputBase, outputSrt)
-            val segments = SrtParser.parse(resolvedSrt)
+            val segments = if (resolvedSrt.exists()) {
+                SrtParser.parse(resolvedSrt)
+            } else {
+                partialFromStdout.get()
+            }
+            if (segments.isEmpty()) {
+                val stdoutSegments = partialFromStdout.get()
+                if (stdoutSegments.isNotEmpty()) {
+                    onPartialResult?.invoke(stdoutSegments)
+                    onProgress?.invoke(100)
+                    return@withContext stdoutSegments
+                }
+            }
+            if (segments.isNotEmpty()) {
+                onPartialResult?.invoke(segments)
+            }
             if (segments.isEmpty()) {
                 throw IllegalStateException(
                     "Whisper completed but produced no subtitles. " +
@@ -96,6 +142,38 @@ class WhisperCliTranscriptionService(
             ?.getOrNull(1)
             ?.toIntOrNull()
         return value?.coerceIn(0, 100)
+    }
+
+    private fun parseSegmentLine(line: String): TranscriptionSegment? {
+        val match = segmentRegex.find(line.trim()) ?: return null
+        val start = parseTimestampMs(match.groupValues[1]) ?: return null
+        val end = parseTimestampMs(match.groupValues[2]) ?: return null
+        val text = match.groupValues[3].trim()
+        if (text.isBlank()) return null
+        return TranscriptionSegment(
+            startMs = start,
+            endMs = end,
+            text = text
+        )
+    }
+
+    private fun parseTimestampMs(raw: String): Long? {
+        val normalized = raw.replace(',', '.')
+        val parts = normalized.split(':')
+        if (parts.size != 3) return null
+        val secParts = parts[2].split('.')
+        if (secParts.size != 2) return null
+        val h = parts[0].toLongOrNull() ?: return null
+        val m = parts[1].toLongOrNull() ?: return null
+        val s = secParts[0].toLongOrNull() ?: return null
+        val ms = secParts[1].toLongOrNull() ?: return null
+        return (((h * 60 + m) * 60) + s) * 1000 + ms
+    }
+
+    private fun buildSegmentsSignature(segments: List<TranscriptionSegment>): String {
+        if (segments.isEmpty()) return ""
+        val last = segments.last()
+        return "${segments.size}:${last.startMs}:${last.endMs}:${last.text.hashCode()}"
     }
 
     private fun resolveOutputSrt(outputBase: File, preferred: File): File {

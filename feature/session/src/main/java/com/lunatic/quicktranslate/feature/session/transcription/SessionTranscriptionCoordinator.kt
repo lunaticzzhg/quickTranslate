@@ -10,6 +10,8 @@ import android.media.MediaFormat.KEY_MIME
 import android.media.MediaFormat.KEY_PCM_ENCODING
 import android.media.MediaFormat.KEY_SAMPLE_RATE
 import android.media.AudioFormat
+import android.os.Handler
+import android.os.Looper
 import com.lunatic.quicktranslate.domain.project.model.ProjectSubtitle
 import com.lunatic.quicktranslate.domain.project.model.SubtitleStatus
 import com.lunatic.quicktranslate.domain.project.usecase.GetProjectSubtitlesUseCase
@@ -23,6 +25,8 @@ import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class SessionTranscriptionCoordinator(
     private val appContext: Context,
@@ -36,6 +40,8 @@ class SessionTranscriptionCoordinator(
         private const val MAX_WAV_DATA_BYTES = 0xFFFF_FFFFL - 36L
     }
 
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     suspend fun restorePersistedSubtitles(projectId: Long): List<SubtitleSegment> {
         if (projectId <= 0L) {
             return emptyList()
@@ -48,23 +54,47 @@ class SessionTranscriptionCoordinator(
     suspend fun transcribeAndPersist(
         projectId: Long,
         mediaUri: String,
-        onProgress: ((Int) -> Unit)? = null
+        onProgress: ((Int) -> Unit)? = null,
+        onPartialSubtitles: ((List<SubtitleSegment>) -> Unit)? = null
     ): Result<List<SubtitleSegment>> {
         if (projectId > 0L) {
             persistStatus(projectId, SubtitleStatus.PROCESSING)
         }
-        val prepared = prepareMediaPath(mediaUri)
-        val result = runCatching {
-            transcriptionService.transcribe(prepared.path, onProgress).mapIndexed { index, segment ->
-                SubtitleSegment(
-                    id = index + 1L,
-                    startMs = segment.startMs,
-                    endMs = segment.endMs,
-                    text = segment.text
-                )
+        val result = withContext(Dispatchers.IO) {
+            val prepared = prepareMediaPath(mediaUri)
+            runCatching {
+                transcriptionService.transcribe(
+                    mediaPath = prepared.path,
+                    onProgress = { progress ->
+                        postToMain {
+                            onProgress?.invoke(progress)
+                        }
+                    },
+                    onPartialResult = { partial ->
+                        val mapped = partial.mapIndexed { index, segment ->
+                            SubtitleSegment(
+                                id = index + 1L,
+                                startMs = segment.startMs,
+                                endMs = segment.endMs,
+                                text = segment.text
+                            )
+                        }
+                        postToMain {
+                            onPartialSubtitles?.invoke(mapped)
+                        }
+                    }
+                ).mapIndexed { index, segment ->
+                    SubtitleSegment(
+                        id = index + 1L,
+                        startMs = segment.startMs,
+                        endMs = segment.endMs,
+                        text = segment.text
+                    )
+                }
+            }.also {
+                prepared.cleanup?.invoke()
             }
         }
-        prepared.cleanup?.invoke()
         result.onSuccess { subtitles ->
             if (projectId > 0L) {
                 runCatching {
@@ -108,6 +138,14 @@ class SessionTranscriptionCoordinator(
             endMs = endMs,
             text = text
         )
+    }
+
+    private fun postToMain(block: () -> Unit) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            block()
+        } else {
+            mainHandler.post(block)
+        }
     }
 
     private data class PreparedMedia(

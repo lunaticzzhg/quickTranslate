@@ -50,6 +50,7 @@ class SessionViewModel(
     val effect: SharedFlow<SessionEffect> = mutableEffect.asSharedFlow()
     val player = sessionPlayer.player
     private var transcriptionJob: Job? = null
+    private var hasAutoStartedPlaybackForCurrentTranscription = false
 
     init {
         if (importedMedia.uri.isNotBlank()) {
@@ -267,6 +268,7 @@ class SessionViewModel(
 
     private suspend fun runMockTranscription() {
         stopLoop()
+        hasAutoStartedPlaybackForCurrentTranscription = false
         mutableState.value = mutableState.value.copy(
             transcriptionStatus = TranscriptionStatus.QUEUED,
             transcriptionProgress = 0,
@@ -285,10 +287,27 @@ class SessionViewModel(
             projectId = importedMedia.projectId,
             mediaUri = importedMedia.uri,
             onProgress = { progress ->
-                mutableState.value = mutableState.value.copy(
-                    transcriptionStatus = TranscriptionStatus.PROCESSING,
-                    transcriptionProgress = progress.coerceIn(0, 100)
-                )
+                viewModelScope.launch(Dispatchers.Main.immediate) {
+                    mutableState.value = mutableState.value.copy(
+                        transcriptionStatus = TranscriptionStatus.PROCESSING,
+                        transcriptionProgress = progress.coerceIn(0, 100)
+                    )
+                }
+            },
+            onPartialSubtitles = { subtitles ->
+                viewModelScope.launch(Dispatchers.Main.immediate) {
+                    mutableState.value = mutableState.value.copy(
+                        transcriptionStatus = TranscriptionStatus.PROCESSING,
+                        subtitles = subtitles,
+                        activeSubtitleIndex = -1
+                    )
+                    if (!hasAutoStartedPlaybackForCurrentTranscription && subtitles.isNotEmpty()) {
+                        hasAutoStartedPlaybackForCurrentTranscription = true
+                        val firstStart = subtitles.first().startMs.coerceAtLeast(0L)
+                        sessionPlayer.seekTo(firstStart)
+                        sessionPlayer.play()
+                    }
+                }
             }
         ).onSuccess { uiSubtitles ->
             val isEmptyResult = uiSubtitles.isEmpty()
