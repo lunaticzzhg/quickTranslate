@@ -1,6 +1,8 @@
 package com.lunatic.quicktranslate.feature.home
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -17,11 +19,15 @@ class HomeViewModel : ViewModel() {
 
     fun onIntent(intent: HomeIntent) {
         when (intent) {
-            HomeIntent.PrimaryActionClicked -> emitEffect(HomeEffect.ShowImportPlaceholder)
+            HomeIntent.PrimaryActionClicked -> emitEffect(HomeEffect.LaunchFilePicker)
+            is HomeIntent.MediaImported -> emitEffect(HomeEffect.NavigateToSession(intent.media))
+            is HomeIntent.MediaImportFailed -> emitEffect(HomeEffect.ShowError(intent.message))
         }
     }
 
     private fun emitEffect(effect: HomeEffect) {
-        mutableEffect.tryEmit(effect)
+        viewModelScope.launch {
+            mutableEffect.emit(effect)
+        }
     }
 }

@@ -6,15 +6,20 @@
 
 ## 2. 当前包含内容
 
-- `SessionEntryPlaceholder` 占位入口
+- `SessionRoute`、`SessionScreen`
+- `SessionState` / `SessionIntent` / `SessionEffect`
+- `SessionViewModel`
+- `SessionNav`（路由参数协议）
+- `di/SessionModule.kt`
 
 ## 3. 对外暴露能力
 
-- 后续将暴露学习页路由入口与页面状态契约
+- 学习详情页路由入口 `SessionRoute`
+- 依赖注入模块 `sessionModule`
 
 ## 4. 依赖关系
 
-- 当前仅依赖基础 Compose 组件
+- 依赖 Compose、Lifecycle Compose、Koin Compose
 
 ## 5. 维护注意事项
 

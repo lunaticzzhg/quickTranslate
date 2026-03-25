@@ -10,10 +10,11 @@
 - `HomeState` / `HomeIntent` / `HomeEffect`
 - `HomeViewModel`
 - `di/HomeModule.kt`（Koin 注入定义）
+- 系统文件选择器接入（音频/视频）
 
 ## 3. 对外暴露能力
 
-- 首页路由入口 `HomeRoute`
+- 首页路由入口 `HomeRoute`（导入媒体后通过回调触发导航到学习详情页）
 - 首页依赖注入模块 `homeModule`
 
 ## 4. 依赖关系
