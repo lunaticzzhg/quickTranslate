@@ -4,7 +4,8 @@ data class HomeState(
     val title: String = "QuickTranslate",
     val message: String = "Import a local audio or video file to start your learning session.",
     val primaryActionLabel: String = "Import Audio / Video",
-    val recentProjects: List<RecentProjectUi> = emptyList()
+    val recentProjects: List<RecentProjectUi> = emptyList(),
+    val pendingDeletionProject: RecentProjectUi? = null
 )
 
 data class ImportedMedia(
@@ -17,13 +18,18 @@ data class ImportedMedia(
 data class RecentProjectUi(
     val id: Long,
     val displayName: String,
-    val mimeType: String
+    val mediaTypeLabel: String,
+    val subtitleStatusLabel: String,
+    val recentLearnedAtLabel: String
 )
 
 sealed interface HomeIntent {
     data object PrimaryActionClicked : HomeIntent
     data class MediaImported(val media: ImportedMedia) : HomeIntent
     data class MediaImportFailed(val message: String) : HomeIntent
+    data class DeleteProjectClicked(val projectId: Long) : HomeIntent
+    data object ConfirmDeleteProject : HomeIntent
+    data object DismissDeleteDialog : HomeIntent
 }
 
 sealed interface HomeEffect {

@@ -8,9 +8,11 @@
 
 - `Project` 领域实体
 - `CreateProjectInput` 输入模型
+- `SubtitleStatus` 字幕状态枚举
 - `ProjectRepository` 仓库接口
 - `CreateProjectUseCase`
 - `ObserveRecentProjectsUseCase`
+- `DeleteProjectUseCase`
 - `di/ProjectDomainModule.kt`
 
 ## 3. 对外暴露能力

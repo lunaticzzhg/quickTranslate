@@ -13,7 +13,9 @@ val projectDataModule = module {
             androidContext(),
             QuickTranslateDatabase::class.java,
             "quick_translate.db"
-        ).build()
+        )
+            .fallbackToDestructiveMigration(dropAllTables = true)
+            .build()
     }
     single { get<QuickTranslateDatabase>().projectDao() }
     single<ProjectRepository> { RoomProjectRepository(get()) }

@@ -11,5 +11,6 @@ data class ProjectEntity(
     val mediaUri: String,
     val mimeType: String,
     val durationMs: Long,
+    val subtitleStatus: String,
     val updatedAtEpochMs: Long
 )

@@ -6,5 +6,6 @@ data class Project(
     val mediaUri: String,
     val mimeType: String,
     val durationMs: Long,
+    val subtitleStatus: SubtitleStatus,
     val updatedAtEpochMs: Long
 )

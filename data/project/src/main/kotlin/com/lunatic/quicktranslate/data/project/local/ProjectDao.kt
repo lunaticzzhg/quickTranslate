@@ -16,4 +16,7 @@ interface ProjectDao {
 
     @Query("SELECT * FROM projects WHERE id = :id LIMIT 1")
     suspend fun getById(id: Long): ProjectEntity?
+
+    @Query("DELETE FROM projects WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }

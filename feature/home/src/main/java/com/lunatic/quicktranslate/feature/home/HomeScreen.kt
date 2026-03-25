@@ -3,9 +3,11 @@ package com.lunatic.quicktranslate.feature.home
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
@@ -54,19 +56,55 @@ fun HomeScreen(
                 items = state.recentProjects,
                 key = { it.id }
             ) { project ->
-                Card {
+                Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
                             text = project.displayName,
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            text = project.mimeType,
+                            text = "Type: ${project.mediaTypeLabel}",
+                            modifier = Modifier.padding(top = 6.dp),
                             style = MaterialTheme.typography.bodySmall
                         )
+                        Text(
+                            text = "Subtitle: ${project.subtitleStatusLabel}",
+                            modifier = Modifier.padding(top = 4.dp),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            text = "Last Learned: ${project.recentLearnedAtLabel}",
+                            modifier = Modifier.padding(top = 4.dp),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Button(
+                            onClick = { onIntent(HomeIntent.DeleteProjectClicked(project.id)) },
+                            modifier = Modifier.padding(top = 10.dp)
+                        ) {
+                            Text(text = "Delete")
+                        }
                     }
                 }
             }
         }
+    }
+
+    val pendingDeletionProject = state.pendingDeletionProject
+    if (pendingDeletionProject != null) {
+        AlertDialog(
+            onDismissRequest = { onIntent(HomeIntent.DismissDeleteDialog) },
+            title = { Text(text = "Delete Project") },
+            text = { Text(text = "Delete '${pendingDeletionProject.displayName}'?") },
+            confirmButton = {
+                Button(onClick = { onIntent(HomeIntent.ConfirmDeleteProject) }) {
+                    Text(text = "Delete")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { onIntent(HomeIntent.DismissDeleteDialog) }) {
+                    Text(text = "Cancel")
+                }
+            }
+        )
     }
 }

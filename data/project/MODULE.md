@@ -8,6 +8,7 @@
 
 - `RoomProjectRepository`（当前主实现）
 - `local/ProjectEntity`、`ProjectDao`、`QuickTranslateDatabase`
+- `SubtitleStatusMapper`、`ProjectMapper`
 - `di/ProjectDataModule.kt`
 
 ## 3. 对外暴露能力

@@ -10,6 +10,7 @@ fun ProjectEntity.toDomain(): Project {
         mediaUri = mediaUri,
         mimeType = mimeType,
         durationMs = durationMs,
+        subtitleStatus = subtitleStatus.toSubtitleStatus(),
         updatedAtEpochMs = updatedAtEpochMs
     )
 }
