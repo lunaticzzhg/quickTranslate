@@ -36,4 +36,15 @@ class RoomProjectRepository(
     override suspend fun deleteProject(projectId: Long) {
         projectDao.deleteById(projectId)
     }
+
+    override suspend fun updateProjectSubtitleStatus(
+        projectId: Long,
+        status: SubtitleStatus
+    ) {
+        projectDao.updateSubtitleStatus(
+            id = projectId,
+            subtitleStatus = status.name,
+            updatedAtEpochMs = System.currentTimeMillis()
+        )
+    }
 }

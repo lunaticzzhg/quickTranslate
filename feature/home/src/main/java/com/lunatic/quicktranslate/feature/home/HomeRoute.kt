@@ -15,7 +15,7 @@ import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun HomeRoute(
-    onNavigateToSession: (ImportedMedia) -> Unit,
+    onNavigateToSession: (Long, ImportedMedia) -> Unit,
     viewModel: HomeViewModel = koinViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -89,7 +89,10 @@ fun HomeRoute(
                 HomeEffect.LaunchFilePicker -> filePickerLauncher.launch(
                     arrayOf("audio/*", "video/*")
                 )
-                is HomeEffect.NavigateToSession -> onNavigateToSession(effect.media)
+                is HomeEffect.NavigateToSession -> onNavigateToSession(
+                    effect.projectId,
+                    effect.media
+                )
                 is HomeEffect.ShowError -> Toast.makeText(
                     context,
                     effect.message,

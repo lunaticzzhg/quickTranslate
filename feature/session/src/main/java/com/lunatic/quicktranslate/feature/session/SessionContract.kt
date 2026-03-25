@@ -1,6 +1,7 @@
 package com.lunatic.quicktranslate.feature.session
 
 import com.lunatic.quicktranslate.feature.session.subtitle.SubtitleSegment
+import com.lunatic.quicktranslate.feature.transcription.TranscriptionStatus
 
 enum class LoopCountOption(
     val label: String,
@@ -29,10 +30,13 @@ data class SessionState(
     val selectedRangeEndIndex: Int? = null,
     val loopCountOption: LoopCountOption = LoopCountOption.THREE,
     val isLooping: Boolean = false,
-    val loopRemainingCount: Int? = null
+    val loopRemainingCount: Int? = null,
+    val transcriptionStatus: TranscriptionStatus = TranscriptionStatus.IDLE,
+    val transcriptionError: String? = null
 )
 
 data class ImportedSessionMedia(
+    val projectId: Long,
     val uri: String,
     val displayName: String,
     val mimeType: String,
@@ -47,6 +51,7 @@ sealed interface SessionIntent {
     data class LoopCountChanged(val option: LoopCountOption) : SessionIntent
     data object StartLoopClicked : SessionIntent
     data object StopLoopClicked : SessionIntent
+    data object RetryTranscriptionClicked : SessionIntent
 }
 
 sealed interface SessionEffect {

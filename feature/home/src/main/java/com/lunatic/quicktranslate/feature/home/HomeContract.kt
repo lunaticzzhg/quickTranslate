@@ -38,6 +38,9 @@ sealed interface HomeIntent {
 
 sealed interface HomeEffect {
     data object LaunchFilePicker : HomeEffect
-    data class NavigateToSession(val media: ImportedMedia) : HomeEffect
+    data class NavigateToSession(
+        val projectId: Long,
+        val media: ImportedMedia
+    ) : HomeEffect
     data class ShowError(val message: String) : HomeEffect
 }

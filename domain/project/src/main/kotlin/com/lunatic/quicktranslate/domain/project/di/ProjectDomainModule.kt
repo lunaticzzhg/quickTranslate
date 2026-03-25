@@ -2,11 +2,21 @@ package com.lunatic.quicktranslate.domain.project.di
 
 import com.lunatic.quicktranslate.domain.project.usecase.CreateProjectUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.DeleteProjectUseCase
+import com.lunatic.quicktranslate.domain.project.usecase.GetProjectLoopConfigUseCase
+import com.lunatic.quicktranslate.domain.project.usecase.GetProjectSubtitlesUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.ObserveRecentProjectsUseCase
+import com.lunatic.quicktranslate.domain.project.usecase.ReplaceProjectSubtitlesUseCase
+import com.lunatic.quicktranslate.domain.project.usecase.SaveProjectLoopConfigUseCase
+import com.lunatic.quicktranslate.domain.project.usecase.UpdateProjectSubtitleStatusUseCase
 import org.koin.dsl.module
 
 val projectDomainModule = module {
     factory { CreateProjectUseCase(get()) }
     factory { ObserveRecentProjectsUseCase(get()) }
     factory { DeleteProjectUseCase(get()) }
+    factory { UpdateProjectSubtitleStatusUseCase(get()) }
+    factory { GetProjectSubtitlesUseCase(get()) }
+    factory { ReplaceProjectSubtitlesUseCase(get()) }
+    factory { GetProjectLoopConfigUseCase(get()) }
+    factory { SaveProjectLoopConfigUseCase(get()) }
 }

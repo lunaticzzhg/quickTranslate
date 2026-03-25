@@ -7,9 +7,16 @@
 ## 2. 当前包含内容
 
 - `RoomProjectRepository`（当前主实现）
+- `RoomProjectSubtitleRepository`
+- `RoomProjectLoopConfigRepository`
 - `local/ProjectEntity`、`ProjectDao`、`QuickTranslateDatabase`
-- `SubtitleStatusMapper`、`ProjectMapper`
+- `local/ProjectSubtitleEntity`、`ProjectSubtitleDao`
+- `local/ProjectLoopConfigEntity`、`ProjectLoopConfigDao`
+- `SubtitleStatusMapper`、`ProjectMapper`、`ProjectSubtitleMapper`、`ProjectLoopConfigMapper`
 - `di/ProjectDataModule.kt`
+- 支持项目字幕状态回写（`subtitleStatus` + `updatedAtEpochMs`）
+- 支持按项目持久化字幕列表并替换更新
+- 支持按项目持久化循环配置（选区起止 + 次数选项）
 
 ## 3. 对外暴露能力
 

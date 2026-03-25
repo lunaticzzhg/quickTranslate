@@ -27,6 +27,8 @@ android {
 
 dependencies {
     implementation(project(":player:core"))
+    implementation(project(":feature:transcription"))
+    implementation(project(":domain:project"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)

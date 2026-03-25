@@ -6,15 +6,17 @@
 
 ## 2. 当前包含内容
 
-- `TranscriptionStatus` 状态定义占位
+- `TranscriptionStatus` 状态定义（idle/queued/processing/success/failed）
+- `TranscriptionSegment` 转写片段模型
+- `MockTranscriptionService` mock 转写实现（用于驱动 UI 联调）
 
 ## 3. 对外暴露能力
 
-- 后续将暴露转写状态契约与交互入口
+- 暴露 mock 转写服务与状态模型，供学习页接入字幕生成流程
 
 ## 4. 依赖关系
 
-- 当前无外部依赖
+- 依赖 Kotlin Coroutines（模拟异步转写耗时）
 
 ## 5. 维护注意事项
 

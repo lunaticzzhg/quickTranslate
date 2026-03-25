@@ -9,12 +9,16 @@
 - `SessionRoute`、`SessionScreen`
 - `SessionState` / `SessionIntent` / `SessionEffect`
 - `SessionViewModel`
-- `SessionNav`（路由参数协议）
+- `SessionNav`（路由参数协议，包含 `projectId`）
 - `di/SessionModule.kt`
 - Media3 播放控制与播放进度展示
-- 字幕模型、mock 字幕列表、时间命中高亮与点击跳转
+- 字幕模型、时间命中高亮与点击跳转
 - 单句循环播放（1/3/5/∞）与手动停止
 - 多句连续字幕选区循环
+- mock 转写状态接入（queued/processing/success/failed）与失败重试入口
+- 转写状态回写项目记录（用于首页状态联动）
+- 学习页重进时优先恢复已落库字幕，避免重复触发 mock 转写
+- 循环配置持久化（选区与循环次数）并在重进时恢复
 
 ## 3. 对外暴露能力
 
@@ -25,6 +29,8 @@
 
 - 依赖 Compose、Lifecycle Compose、Koin Compose
 - 依赖 `player:core`
+- 依赖 `feature:transcription`
+- 依赖 `domain:project`
 
 ## 5. 维护注意事项
 

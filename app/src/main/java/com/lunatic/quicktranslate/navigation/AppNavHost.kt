@@ -23,10 +23,11 @@ fun AppNavHost() {
     ) {
         composable(route = HOME_ROUTE) {
             HomeRoute(
-                onNavigateToSession = { media ->
+                onNavigateToSession = { projectId, media ->
                     navController.navigate(
                         SessionNav.createRoute(
                             ImportedSessionMedia(
+                                projectId = projectId,
                                 uri = media.uri,
                                 displayName = media.displayName,
                                 mimeType = media.mimeType,
@@ -41,6 +42,7 @@ fun AppNavHost() {
         composable(
             route = SessionNav.routePattern,
             arguments = listOf(
+                navArgument(SessionNav.projectIdArg) { type = NavType.LongType },
                 navArgument(SessionNav.uriArg) { type = NavType.StringType },
                 navArgument(SessionNav.nameArg) { type = NavType.StringType },
                 navArgument(SessionNav.mimeArg) { type = NavType.StringType },

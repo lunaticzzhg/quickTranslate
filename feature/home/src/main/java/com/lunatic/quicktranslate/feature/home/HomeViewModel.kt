@@ -65,8 +65,13 @@ class HomeViewModel(
                         durationMs = media.durationMs
                     )
                 )
-            }.onSuccess {
-                emitEffect(HomeEffect.NavigateToSession(media))
+            }.onSuccess { project ->
+                emitEffect(
+                    HomeEffect.NavigateToSession(
+                        projectId = project.id,
+                        media = media
+                    )
+                )
             }.onFailure {
                 emitEffect(
                     HomeEffect.ShowError(
@@ -152,7 +157,8 @@ class HomeViewModel(
         }
         emitEffect(
             HomeEffect.NavigateToSession(
-                ImportedMedia(
+                projectId = project.id,
+                media = ImportedMedia(
                     uri = project.mediaUri,
                     displayName = project.displayName,
                     mimeType = project.mimeType,

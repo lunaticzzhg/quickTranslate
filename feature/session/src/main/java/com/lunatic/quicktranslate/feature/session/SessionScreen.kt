@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
+import com.lunatic.quicktranslate.feature.transcription.TranscriptionStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,6 +78,27 @@ fun SessionScreen(
             text = "${state.importedName} · ${state.importedMime} · ${state.importedDuration}",
             style = MaterialTheme.typography.bodySmall
         )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = transcriptionStatusLabel(state.transcriptionStatus),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (state.transcriptionStatus == TranscriptionStatus.FAILED) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
+            if (state.transcriptionStatus == TranscriptionStatus.FAILED) {
+                Button(onClick = { onIntent(SessionIntent.RetryTranscriptionClicked) }) {
+                    Text(text = "Retry")
+                }
+            }
+        }
 
         if (state.hasVideo) {
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -168,79 +190,96 @@ fun SessionScreen(
             state = subtitleListState,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            val rangeStart = selectedRangeStart(state)
-            val rangeEnd = selectedRangeEnd(state)
-            itemsIndexed(state.subtitles, key = { _, item -> item.id }) { index, segment ->
-                if (rangeStart != null && index == rangeStart) {
-                    SelectionBracketItem(
-                        top = true,
-                        color = MaterialTheme.colorScheme.tertiary
-                    )
-                }
-
-                val isActive = index == state.activeSubtitleIndex
-                val activeColor = MaterialTheme.colorScheme.primary
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isActive) {
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)
-                        } else {
-                            MaterialTheme.colorScheme.surfaceVariant
-                        }
-                    ),
-                    onClick = { onIntent(SessionIntent.SubtitleClicked(segment)) }
-                ) {
-                    Row(
+            if (state.subtitles.isEmpty()) {
+                item(key = "subtitle-empty") {
+                    Card(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
                     ) {
-                        if (isActive) {
-                            Box(
-                                modifier = Modifier
-                                    .padding(start = 6.dp)
-                                    .width(4.dp)
-                                    .height(64.dp)
-                                    .drawBehind {
-                                        drawLine(
-                                            color = activeColor,
-                                            start = Offset(size.width / 2, 0f),
-                                            end = Offset(size.width / 2, size.height),
-                                            strokeWidth = size.width
-                                        )
-                                    }
-                            )
-                        }
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(10.dp)
-                        ) {
-                            Text(
-                                text = "${formatClock(segment.startMs)} - ${formatClock(segment.endMs)}",
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                            Text(
-                                text = "#${index + 1}",
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                            Text(
-                                text = segment.text,
-                                style = if (isActive) {
-                                    MaterialTheme.typography.titleMedium
-                                } else {
-                                    MaterialTheme.typography.bodyMedium
-                                }
-                            )
-                        }
+                        Text(
+                            text = subtitlePlaceholderText(state),
+                            modifier = Modifier.padding(12.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
                 }
+            } else {
+                val rangeStart = selectedRangeStart(state)
+                val rangeEnd = selectedRangeEnd(state)
+                itemsIndexed(state.subtitles, key = { _, item -> item.id }) { index, segment ->
+                    if (rangeStart != null && index == rangeStart) {
+                        SelectionBracketItem(
+                            top = true,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
 
-                if (rangeEnd != null && index == rangeEnd) {
-                    SelectionBracketItem(
-                        top = false,
-                        color = MaterialTheme.colorScheme.tertiary
-                    )
+                    val isActive = index == state.activeSubtitleIndex
+                    val activeColor = MaterialTheme.colorScheme.primary
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isActive) {
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            }
+                        ),
+                        onClick = { onIntent(SessionIntent.SubtitleClicked(segment)) }
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (isActive) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(start = 6.dp)
+                                        .width(4.dp)
+                                        .height(64.dp)
+                                        .drawBehind {
+                                            drawLine(
+                                                color = activeColor,
+                                                start = Offset(size.width / 2, 0f),
+                                                end = Offset(size.width / 2, size.height),
+                                                strokeWidth = size.width
+                                            )
+                                        }
+                                )
+                            }
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(10.dp)
+                            ) {
+                                Text(
+                                    text = "${formatClock(segment.startMs)} - ${formatClock(segment.endMs)}",
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                                Text(
+                                    text = "#${index + 1}",
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                                Text(
+                                    text = segment.text,
+                                    style = if (isActive) {
+                                        MaterialTheme.typography.titleMedium
+                                    } else {
+                                        MaterialTheme.typography.bodyMedium
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    if (rangeEnd != null && index == rangeEnd) {
+                        SelectionBracketItem(
+                            top = false,
+                            color = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
                 }
             }
         }
@@ -288,6 +327,26 @@ fun SessionScreen(
                 }
             }
         }
+    }
+}
+
+private fun transcriptionStatusLabel(status: TranscriptionStatus): String {
+    return when (status) {
+        TranscriptionStatus.IDLE -> "Transcription: idle"
+        TranscriptionStatus.QUEUED -> "Transcription: queued"
+        TranscriptionStatus.PROCESSING -> "Transcription: processing..."
+        TranscriptionStatus.SUCCESS -> "Transcription: ready"
+        TranscriptionStatus.FAILED -> "Transcription: failed"
+    }
+}
+
+private fun subtitlePlaceholderText(state: SessionState): String {
+    return when (state.transcriptionStatus) {
+        TranscriptionStatus.IDLE -> "No subtitles yet."
+        TranscriptionStatus.QUEUED -> "Transcription queued. Preparing subtitle generation."
+        TranscriptionStatus.PROCESSING -> "Generating subtitles..."
+        TranscriptionStatus.SUCCESS -> "No subtitles generated."
+        TranscriptionStatus.FAILED -> state.transcriptionError ?: "Transcription failed. Please retry."
     }
 }
 
@@ -360,13 +419,4 @@ private fun SelectionBracketItem(
                 }
         )
     }
-}
-
-private fun isIndexInSelectedRange(index: Int, start: Int?, end: Int?): Boolean {
-    if (start == null || end == null) {
-        return false
-    }
-    val rangeStart = minOf(start, end)
-    val rangeEnd = maxOf(start, end)
-    return index in rangeStart..rangeEnd
 }
