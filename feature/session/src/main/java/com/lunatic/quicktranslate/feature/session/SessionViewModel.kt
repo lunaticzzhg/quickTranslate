@@ -3,20 +3,12 @@ package com.lunatic.quicktranslate.feature.session
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lunatic.quicktranslate.domain.project.model.ProjectLoopConfig
-import com.lunatic.quicktranslate.domain.project.model.ProjectSubtitle
-import com.lunatic.quicktranslate.domain.project.model.SubtitleStatus
-import com.lunatic.quicktranslate.domain.project.usecase.GetProjectLoopConfigUseCase
-import com.lunatic.quicktranslate.domain.project.usecase.GetProjectPlaybackPositionUseCase
-import com.lunatic.quicktranslate.domain.project.usecase.GetProjectSubtitlesUseCase
-import com.lunatic.quicktranslate.domain.project.usecase.ReplaceProjectSubtitlesUseCase
-import com.lunatic.quicktranslate.domain.project.usecase.SaveProjectLoopConfigUseCase
-import com.lunatic.quicktranslate.domain.project.usecase.UpdateProjectPlaybackPositionUseCase
-import com.lunatic.quicktranslate.domain.project.usecase.UpdateProjectSubtitleStatusUseCase
+import com.lunatic.quicktranslate.feature.session.loop.SessionLoopController
+import com.lunatic.quicktranslate.feature.session.playback.SessionPlaybackCoordinator
 import com.lunatic.quicktranslate.player.core.SessionPlayer
 import com.lunatic.quicktranslate.feature.session.subtitle.SubtitleSegment
 import com.lunatic.quicktranslate.feature.session.subtitle.SubtitleMatcher
-import com.lunatic.quicktranslate.feature.transcription.MockTranscriptionService
+import com.lunatic.quicktranslate.feature.session.transcription.SessionTranscriptionCoordinator
 import com.lunatic.quicktranslate.feature.transcription.TranscriptionStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,22 +25,10 @@ import kotlinx.coroutines.launch
 class SessionViewModel(
     savedStateHandle: SavedStateHandle,
     private val sessionPlayer: SessionPlayer,
-    private val transcriptionService: MockTranscriptionService,
-    private val updateProjectSubtitleStatusUseCase: UpdateProjectSubtitleStatusUseCase,
-    private val getProjectPlaybackPositionUseCase: GetProjectPlaybackPositionUseCase,
-    private val updateProjectPlaybackPositionUseCase: UpdateProjectPlaybackPositionUseCase,
-    private val getProjectSubtitlesUseCase: GetProjectSubtitlesUseCase,
-    private val replaceProjectSubtitlesUseCase: ReplaceProjectSubtitlesUseCase,
-    private val getProjectLoopConfigUseCase: GetProjectLoopConfigUseCase,
-    private val saveProjectLoopConfigUseCase: SaveProjectLoopConfigUseCase
+    private val transcriptionCoordinator: SessionTranscriptionCoordinator,
+    private val loopController: SessionLoopController,
+    private val playbackCoordinator: SessionPlaybackCoordinator,
 ) : ViewModel() {
-    private data class LoopSession(
-        val startMs: Long,
-        val endMs: Long,
-        val totalRepeatCount: Int?,
-        val remainingCount: Int?
-    )
-
     private val importedMedia = ImportedSessionMedia(
         projectId = savedStateHandle[SessionNav.projectIdArg] ?: -1L,
         uri = savedStateHandle[SessionNav.uriArg] ?: "",
@@ -69,10 +49,7 @@ class SessionViewModel(
     private val mutableEffect = MutableSharedFlow<SessionEffect>()
     val effect: SharedFlow<SessionEffect> = mutableEffect.asSharedFlow()
     val player = sessionPlayer.player
-    private var loopSession: LoopSession? = null
-    private var loopJumpInProgress = false
     private var transcriptionJob: Job? = null
-    private var restoredLoopConfig: ProjectLoopConfig? = null
 
     init {
         if (importedMedia.uri.isNotBlank()) {
@@ -160,7 +137,11 @@ class SessionViewModel(
             selectedRangeStartIndex = newStart,
             selectedRangeEndIndex = newEnd
         )
-        persistLoopConfig()
+        loopController.persistConfigAsync(
+            projectId = importedMedia.projectId,
+            state = mutableState.value,
+            scope = viewModelScope
+        )
         sessionPlayer.seekTo(segment.startMs)
     }
 
@@ -178,7 +159,11 @@ class SessionViewModel(
         mutableState.value = mutableState.value.copy(
             loopCountOption = option
         )
-        persistLoopConfig()
+        loopController.persistConfigAsync(
+            projectId = importedMedia.projectId,
+            state = mutableState.value,
+            scope = viewModelScope
+        )
     }
 
     private fun startLoop() {
@@ -187,92 +172,41 @@ class SessionViewModel(
             segments = currentState.subtitles,
             positionMs = currentState.currentPositionMs
         )
-        val selectedStart = currentState.selectedRangeStartIndex
-        val selectedEnd = currentState.selectedRangeEndIndex
         val fallbackSingleIndex = if (segmentIndexByCurrentPosition >= 0) {
             segmentIndexByCurrentPosition
         } else {
             currentState.activeSubtitleIndex
         }
-
-        val (loopStartIndex, loopEndIndex) = if (selectedStart != null && selectedEnd != null) {
-            minOf(selectedStart, selectedEnd) to maxOf(selectedStart, selectedEnd)
-        } else {
-            val idx = fallbackSingleIndex
-            if (idx < 0 || idx >= currentState.subtitles.size) {
-                return
-            }
-            idx to idx
-        }
-
-        val startSegment = currentState.subtitles.getOrNull(loopStartIndex) ?: return
-        val endSegment = currentState.subtitles.getOrNull(loopEndIndex) ?: return
-
-        val repeatCount = currentState.loopCountOption.repeatCount
-        loopSession = LoopSession(
-            startMs = startSegment.startMs,
-            endMs = endSegment.endMs,
-            totalRepeatCount = repeatCount,
-            remainingCount = repeatCount
+        val startResult = loopController.start(
+            state = currentState,
+            fallbackSingleIndex = fallbackSingleIndex
+        ) ?: return
+        mutableState.value = startResult.state
+        loopController.persistConfigAsync(
+            projectId = importedMedia.projectId,
+            state = mutableState.value,
+            scope = viewModelScope
         )
-        loopJumpInProgress = false
-        mutableState.value = mutableState.value.copy(
-            selectedRangeStartIndex = loopStartIndex,
-            selectedRangeEndIndex = loopEndIndex,
-            isLooping = true,
-            loopRemainingCount = repeatCount
-        )
-        persistLoopConfig()
-        sessionPlayer.seekTo(startSegment.startMs)
+        sessionPlayer.seekTo(startResult.seekToMs)
         sessionPlayer.play()
     }
 
     private fun stopLoop() {
-        loopSession = null
-        loopJumpInProgress = false
-        mutableState.value = mutableState.value.copy(
-            isLooping = false,
-            loopRemainingCount = null
-        )
+        mutableState.value = loopController.stop(mutableState.value)
     }
 
     private fun evaluateLoop(currentPositionMs: Long) {
-        val activeLoop = loopSession ?: return
-        val startMs = activeLoop.startMs
-        val endMs = activeLoop.endMs
-
-        if (currentPositionMs <= startMs + 150L) {
-            loopJumpInProgress = false
-        }
-
-        if (!mutableState.value.isLooping || loopJumpInProgress) {
-            return
-        }
-
-        if (currentPositionMs < endMs) {
-            return
-        }
-
-        loopJumpInProgress = true
-        val remaining = activeLoop.remainingCount
-        if (remaining == null) {
-            sessionPlayer.seekTo(startMs)
-            return
-        }
-
-        val updatedRemaining = remaining - 1
-        if (updatedRemaining <= 0) {
-            sessionPlayer.pause()
-            sessionPlayer.seekTo(startMs)
-            stopLoop()
-            return
-        }
-
-        loopSession = activeLoop.copy(remainingCount = updatedRemaining)
-        mutableState.value = mutableState.value.copy(
-            loopRemainingCount = updatedRemaining
+        val evaluation = loopController.evaluate(
+            state = mutableState.value,
+            currentPositionMs = currentPositionMs
         )
-        sessionPlayer.seekTo(startMs)
+        if (evaluation.state != mutableState.value) {
+            mutableState.value = evaluation.state
+        }
+        if (evaluation.shouldPause) {
+            sessionPlayer.pause()
+        }
+        evaluation.seekToMs?.let(sessionPlayer::seekTo)
     }
 
     private fun startMockTranscription() {
@@ -289,8 +223,10 @@ class SessionViewModel(
             return
         }
         transcriptionJob = viewModelScope.launch {
-            restoredLoopConfig = loadSavedLoopConfig()
-            applyLoopOptionFromSavedConfig(restoredLoopConfig)
+            mutableState.value = loopController.restorePersistedConfig(
+                projectId = importedMedia.projectId,
+                state = mutableState.value
+            )
             val restored = restoreSavedSubtitles()
             if (!restored) {
                 runMockTranscription()
@@ -304,9 +240,7 @@ class SessionViewModel(
             return
         }
         viewModelScope.launch {
-            val targetPosition = runCatching {
-                getProjectPlaybackPositionUseCase(projectId)
-            }.getOrNull() ?: return@launch
+            val targetPosition = playbackCoordinator.restorePlaybackPosition(projectId) ?: return@launch
             if (targetPosition > 0L) {
                 sessionPlayer.seekTo(targetPosition)
             }
@@ -314,28 +248,19 @@ class SessionViewModel(
     }
 
     private suspend fun restoreSavedSubtitles(): Boolean {
-        val projectId = importedMedia.projectId
-        if (projectId <= 0L) {
-            return false
-        }
-        val storedSubtitles = runCatching {
-            getProjectSubtitlesUseCase(projectId)
-        }.getOrDefault(emptyList())
+        val storedSubtitles = transcriptionCoordinator.restorePersistedSubtitles(importedMedia.projectId)
         if (storedSubtitles.isEmpty()) {
             return false
         }
         mutableState.value = mutableState.value.copy(
             transcriptionStatus = TranscriptionStatus.SUCCESS,
             transcriptionError = null,
-            subtitles = storedSubtitles.map { it.toUiSubtitle() },
+            subtitles = storedSubtitles,
             activeSubtitleIndex = -1,
             selectedRangeStartIndex = null,
             selectedRangeEndIndex = null
         )
-        applySelectionFromSavedConfig(
-            config = restoredLoopConfig,
-            subtitleCount = storedSubtitles.size
-        )
+        mutableState.value = loopController.applyRestoredSelectionIfValid(mutableState.value)
         return true
     }
 
@@ -353,29 +278,16 @@ class SessionViewModel(
         mutableState.value = mutableState.value.copy(
             transcriptionStatus = TranscriptionStatus.PROCESSING
         )
-        persistSubtitleStatus(SubtitleStatus.PROCESSING)
-        runCatching {
-            transcriptionService.transcribe(importedMedia.uri)
-        }.onSuccess { segments ->
-            val uiSubtitles = segments.mapIndexed { index, segment ->
-                SubtitleSegment(
-                    id = index + 1L,
-                    startMs = segment.startMs,
-                    endMs = segment.endMs,
-                    text = segment.text
-                )
-            }
+        transcriptionCoordinator.transcribeAndPersist(
+            projectId = importedMedia.projectId,
+            mediaUri = importedMedia.uri
+        ).onSuccess { uiSubtitles ->
             mutableState.value = mutableState.value.copy(
                 transcriptionStatus = TranscriptionStatus.SUCCESS,
                 transcriptionError = null,
                 subtitles = uiSubtitles
             )
-            applySelectionFromSavedConfig(
-                config = restoredLoopConfig,
-                subtitleCount = uiSubtitles.size
-            )
-            persistProjectSubtitles(uiSubtitles)
-            persistSubtitleStatus(SubtitleStatus.COMPLETED)
+            mutableState.value = loopController.applyRestoredSelectionIfValid(mutableState.value)
         }.onFailure { throwable ->
             mutableState.value = mutableState.value.copy(
                 transcriptionStatus = TranscriptionStatus.FAILED,
@@ -383,120 +295,12 @@ class SessionViewModel(
                 subtitles = emptyList(),
                 activeSubtitleIndex = -1
             )
-            persistSubtitleStatus(SubtitleStatus.FAILED)
         }
-    }
-
-    private fun persistSubtitleStatus(status: SubtitleStatus) {
-        val projectId = importedMedia.projectId
-        if (projectId <= 0L) {
-            return
-        }
-        viewModelScope.launch {
-            runCatching {
-                updateProjectSubtitleStatusUseCase(
-                    projectId = projectId,
-                    status = status
-                )
-            }
-        }
-    }
-
-    private suspend fun persistProjectSubtitles(subtitles: List<SubtitleSegment>) {
-        val projectId = importedMedia.projectId
-        if (projectId <= 0L) {
-            return
-        }
-        runCatching {
-            replaceProjectSubtitlesUseCase(
-                projectId = projectId,
-                subtitles = subtitles.map { it.toProjectSubtitle() }
-            )
-        }
-    }
-
-    private suspend fun loadSavedLoopConfig(): ProjectLoopConfig? {
-        val projectId = importedMedia.projectId
-        if (projectId <= 0L) {
-            return null
-        }
-        return runCatching {
-            getProjectLoopConfigUseCase(projectId)
-        }.getOrNull()
-    }
-
-    private fun applyLoopOptionFromSavedConfig(config: ProjectLoopConfig?) {
-        val option = config?.loopCountOptionName?.let { name ->
-            LoopCountOption.entries.firstOrNull { it.name == name }
-        } ?: return
-        mutableState.value = mutableState.value.copy(
-            loopCountOption = option
-        )
-    }
-
-    private fun applySelectionFromSavedConfig(
-        config: ProjectLoopConfig?,
-        subtitleCount: Int
-    ) {
-        if (subtitleCount <= 0) {
-            return
-        }
-        val start = config?.selectedRangeStartIndex
-        val end = config?.selectedRangeEndIndex
-        if (start == null || end == null) {
-            return
-        }
-        val rangeStart = minOf(start, end)
-        val rangeEnd = maxOf(start, end)
-        if (rangeStart < 0 || rangeEnd >= subtitleCount) {
-            return
-        }
-        mutableState.value = mutableState.value.copy(
-            selectedRangeStartIndex = start,
-            selectedRangeEndIndex = end
-        )
-    }
-
-    private fun persistLoopConfig() {
-        val projectId = importedMedia.projectId
-        if (projectId <= 0L) {
-            return
-        }
-        val stateSnapshot = mutableState.value
-        viewModelScope.launch {
-            runCatching {
-                saveProjectLoopConfigUseCase(
-                    projectId = projectId,
-                    config = ProjectLoopConfig(
-                        selectedRangeStartIndex = stateSnapshot.selectedRangeStartIndex,
-                        selectedRangeEndIndex = stateSnapshot.selectedRangeEndIndex,
-                        loopCountOptionName = stateSnapshot.loopCountOption.name
-                    )
-                )
-            }
-        }
-    }
-
-    private fun ProjectSubtitle.toUiSubtitle(): SubtitleSegment {
-        return SubtitleSegment(
-            id = sequenceIndex + 1L,
-            startMs = startMs,
-            endMs = endMs,
-            text = text
-        )
-    }
-
-    private fun SubtitleSegment.toProjectSubtitle(): ProjectSubtitle {
-        return ProjectSubtitle(
-            sequenceIndex = (id - 1L).toInt(),
-            startMs = startMs,
-            endMs = endMs,
-            text = text
-        )
     }
 
     override fun onCleared() {
         persistPlaybackPosition()
+        loopController.clear()
         transcriptionJob?.cancel()
         sessionPlayer.release()
         super.onCleared()
@@ -509,12 +313,10 @@ class SessionViewModel(
         }
         val position = mutableState.value.currentPositionMs.coerceAtLeast(0L)
         CoroutineScope(Dispatchers.IO).launch {
-            runCatching {
-                updateProjectPlaybackPositionUseCase(
-                    projectId = projectId,
-                    playbackPositionMs = position
-                )
-            }
+            playbackCoordinator.persistPlaybackPosition(
+                projectId = projectId,
+                playbackPositionMs = position
+            )
         }
     }
 }

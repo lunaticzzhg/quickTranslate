@@ -9,6 +9,9 @@
 - `SessionRoute`、`SessionScreen`
 - `SessionState` / `SessionIntent` / `SessionEffect`
 - `SessionViewModel`
+- `loop/SessionLoopController`（循环状态机拆分）
+- `playback/SessionPlaybackCoordinator`（播放位置恢复/持久化拆分）
+- `transcription/SessionTranscriptionCoordinator`（转写与字幕恢复拆分）
 - `SessionNav`（路由参数协议，包含 `projectId`）
 - `di/SessionModule.kt`
 - Media3 播放控制与播放进度展示
