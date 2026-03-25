@@ -1,0 +1,8 @@
+com.lunatic.quicktranslate.feature.home-pngs-0 /Users/lunatic/AndroidStudioProjects/QuickTranslate/feature/home/build/generated/res/pngs/debug
+com.lunatic.quicktranslate.feature.home-updated_navigation_xml-1 /Users/lunatic/AndroidStudioProjects/QuickTranslate/feature/home/build/generated/updated_navigation_xml/debug
+com.lunatic.quicktranslate.feature.home-mergeDebugResources-2 /Users/lunatic/AndroidStudioProjects/QuickTranslate/feature/home/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
+com.lunatic.quicktranslate.feature.home-mergeDebugResources-3 /Users/lunatic/AndroidStudioProjects/QuickTranslate/feature/home/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
+com.lunatic.quicktranslate.feature.home-debug-4 /Users/lunatic/AndroidStudioProjects/QuickTranslate/feature/home/build/intermediates/merged_res/debug/mergeDebugResources
+com.lunatic.quicktranslate.feature.home-debug-5 /Users/lunatic/AndroidStudioProjects/QuickTranslate/feature/home/build/intermediates/packaged_res/debug/packageDebugResources
+com.lunatic.quicktranslate.feature.home-debug-6 /Users/lunatic/AndroidStudioProjects/QuickTranslate/feature/home/src/debug/res
+com.lunatic.quicktranslate.feature.home-main-7 /Users/lunatic/AndroidStudioProjects/QuickTranslate/feature/home/src/main/res
