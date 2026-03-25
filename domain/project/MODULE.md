@@ -6,11 +6,16 @@
 
 ## 2. 当前包含内容
 
-- `Project` 领域实体占位定义
+- `Project` 领域实体
+- `CreateProjectInput` 输入模型
+- `ProjectRepository` 仓库接口
+- `CreateProjectUseCase`
+- `ObserveRecentProjectsUseCase`
+- `di/ProjectDomainModule.kt`
 
 ## 3. 对外暴露能力
 
-- 供 feature 与 data 层共享的领域实体
+- 对外暴露项目领域模型、仓库契约与用例
 
 ## 4. 依赖关系
 

@@ -1,11 +1,31 @@
 plugins {
-    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.android.library)
+    alias(libs.plugins.ksp)
 }
 
-kotlin {
-    jvmToolchain(11)
+android {
+    namespace = "com.lunatic.quicktranslate.data.project"
+    compileSdk {
+        version = release(36) {
+            minorApiLevel = 1
+        }
+    }
+
+    defaultConfig {
+        minSdk = 29
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
 }
 
 dependencies {
     implementation(project(":domain:project"))
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.koin.android)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
 }

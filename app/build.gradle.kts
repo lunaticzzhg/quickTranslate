@@ -40,6 +40,8 @@ android {
 }
 
 dependencies {
+    implementation(project(":domain:project"))
+    implementation(project(":data:project"))
     implementation(project(":feature:home"))
     implementation(project(":feature:session"))
 

@@ -6,11 +6,13 @@
 
 ## 2. 当前包含内容
 
-- `ProjectRepositoryPlaceholder` 占位实现
+- `RoomProjectRepository`（当前主实现）
+- `local/ProjectEntity`、`ProjectDao`、`QuickTranslateDatabase`
+- `di/ProjectDataModule.kt`
 
 ## 3. 对外暴露能力
 
-- 后续将暴露 `domain:project` 仓库接口的实现
+- 已提供 `domain:project` 的 `ProjectRepository` 实现
 
 ## 4. 依赖关系
 
@@ -18,4 +20,5 @@
 
 ## 5. 维护注意事项
 
+- 当前默认使用 Room，本地表结构调整需同步评估迁移策略
 - 数据访问实现保持在本模块，不向 feature 泄露存储细节
