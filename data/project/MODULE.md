@@ -9,12 +9,15 @@
 - `RoomProjectRepository`（当前主实现）
 - `RoomProjectSubtitleRepository`
 - `RoomProjectLoopConfigRepository`
+- `RoomProjectPlaybackStateRepository`
 - `local/ProjectEntity`、`ProjectDao`、`QuickTranslateDatabase`
 - `local/ProjectSubtitleEntity`、`ProjectSubtitleDao`
 - `local/ProjectLoopConfigEntity`、`ProjectLoopConfigDao`
+- `local/ProjectPlaybackStateEntity`、`ProjectPlaybackStateDao`
 - `SubtitleStatusMapper`、`ProjectMapper`、`ProjectSubtitleMapper`、`ProjectLoopConfigMapper`
 - `di/ProjectDataModule.kt`
 - 支持项目字幕状态回写（`subtitleStatus` + `updatedAtEpochMs`）
+- 支持最近播放位置持久化（独立播放状态表）
 - 支持按项目持久化字幕列表并替换更新
 - 支持按项目持久化循环配置（选区起止 + 次数选项）
 

@@ -7,13 +7,15 @@ import androidx.room.RoomDatabase
     entities = [
         ProjectEntity::class,
         ProjectSubtitleEntity::class,
-        ProjectLoopConfigEntity::class
+        ProjectLoopConfigEntity::class,
+        ProjectPlaybackStateEntity::class
     ],
-    version = 4,
+    version = 6,
     exportSchema = false
 )
 abstract class QuickTranslateDatabase : RoomDatabase() {
     abstract fun projectDao(): ProjectDao
     abstract fun projectSubtitleDao(): ProjectSubtitleDao
     abstract fun projectLoopConfigDao(): ProjectLoopConfigDao
+    abstract fun projectPlaybackStateDao(): ProjectPlaybackStateDao
 }

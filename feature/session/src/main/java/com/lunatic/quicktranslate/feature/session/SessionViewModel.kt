@@ -7,15 +7,19 @@ import com.lunatic.quicktranslate.domain.project.model.ProjectLoopConfig
 import com.lunatic.quicktranslate.domain.project.model.ProjectSubtitle
 import com.lunatic.quicktranslate.domain.project.model.SubtitleStatus
 import com.lunatic.quicktranslate.domain.project.usecase.GetProjectLoopConfigUseCase
+import com.lunatic.quicktranslate.domain.project.usecase.GetProjectPlaybackPositionUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.GetProjectSubtitlesUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.ReplaceProjectSubtitlesUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.SaveProjectLoopConfigUseCase
+import com.lunatic.quicktranslate.domain.project.usecase.UpdateProjectPlaybackPositionUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.UpdateProjectSubtitleStatusUseCase
 import com.lunatic.quicktranslate.player.core.SessionPlayer
 import com.lunatic.quicktranslate.feature.session.subtitle.SubtitleSegment
 import com.lunatic.quicktranslate.feature.session.subtitle.SubtitleMatcher
 import com.lunatic.quicktranslate.feature.transcription.MockTranscriptionService
 import com.lunatic.quicktranslate.feature.transcription.TranscriptionStatus
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -31,6 +35,8 @@ class SessionViewModel(
     private val sessionPlayer: SessionPlayer,
     private val transcriptionService: MockTranscriptionService,
     private val updateProjectSubtitleStatusUseCase: UpdateProjectSubtitleStatusUseCase,
+    private val getProjectPlaybackPositionUseCase: GetProjectPlaybackPositionUseCase,
+    private val updateProjectPlaybackPositionUseCase: UpdateProjectPlaybackPositionUseCase,
     private val getProjectSubtitlesUseCase: GetProjectSubtitlesUseCase,
     private val replaceProjectSubtitlesUseCase: ReplaceProjectSubtitlesUseCase,
     private val getProjectLoopConfigUseCase: GetProjectLoopConfigUseCase,
@@ -71,6 +77,7 @@ class SessionViewModel(
     init {
         if (importedMedia.uri.isNotBlank()) {
             sessionPlayer.setMedia(importedMedia.uri)
+            restoreLastPlaybackPosition()
             restoreSavedSubtitlesOrTranscribe()
         }
         viewModelScope.launch {
@@ -291,6 +298,21 @@ class SessionViewModel(
         }
     }
 
+    private fun restoreLastPlaybackPosition() {
+        val projectId = importedMedia.projectId
+        if (projectId <= 0L) {
+            return
+        }
+        viewModelScope.launch {
+            val targetPosition = runCatching {
+                getProjectPlaybackPositionUseCase(projectId)
+            }.getOrNull() ?: return@launch
+            if (targetPosition > 0L) {
+                sessionPlayer.seekTo(targetPosition)
+            }
+        }
+    }
+
     private suspend fun restoreSavedSubtitles(): Boolean {
         val projectId = importedMedia.projectId
         if (projectId <= 0L) {
@@ -474,8 +496,25 @@ class SessionViewModel(
     }
 
     override fun onCleared() {
+        persistPlaybackPosition()
         transcriptionJob?.cancel()
         sessionPlayer.release()
         super.onCleared()
+    }
+
+    private fun persistPlaybackPosition() {
+        val projectId = importedMedia.projectId
+        if (projectId <= 0L) {
+            return
+        }
+        val position = mutableState.value.currentPositionMs.coerceAtLeast(0L)
+        CoroutineScope(Dispatchers.IO).launch {
+            runCatching {
+                updateProjectPlaybackPositionUseCase(
+                    projectId = projectId,
+                    playbackPositionMs = position
+                )
+            }
+        }
     }
 }

@@ -14,10 +14,13 @@
 - `ProjectRepository` 仓库接口
 - `ProjectSubtitleRepository` 字幕仓库接口
 - `ProjectLoopConfigRepository` 循环配置仓库接口
+- `ProjectPlaybackStateRepository` 播放状态仓库接口
 - `CreateProjectUseCase`
 - `ObserveRecentProjectsUseCase`
 - `DeleteProjectUseCase`
 - `UpdateProjectSubtitleStatusUseCase`
+- `GetProjectPlaybackPositionUseCase`
+- `UpdateProjectPlaybackPositionUseCase`
 - `GetProjectSubtitlesUseCase`
 - `ReplaceProjectSubtitlesUseCase`
 - `GetProjectLoopConfigUseCase`

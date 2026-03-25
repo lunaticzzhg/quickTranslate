@@ -18,6 +18,10 @@ class RoomProjectRepository(
         }
     }
 
+    override suspend fun getProjectById(projectId: Long): Project? {
+        return projectDao.getById(projectId)?.toDomain()
+    }
+
     override suspend fun createProject(input: CreateProjectInput): Project {
         val now = System.currentTimeMillis()
         val entity = ProjectEntity(
