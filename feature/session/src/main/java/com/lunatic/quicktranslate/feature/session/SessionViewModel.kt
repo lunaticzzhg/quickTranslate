@@ -3,6 +3,10 @@ package com.lunatic.quicktranslate.feature.session
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTaskStatus
+import com.lunatic.quicktranslate.domain.project.usecase.BumpProjectTranscodeTaskPriorityUseCase
+import com.lunatic.quicktranslate.domain.project.usecase.EnqueueProjectTranscodeTaskUseCase
+import com.lunatic.quicktranslate.domain.project.usecase.ObserveProjectTranscodeTaskUseCase
 import com.lunatic.quicktranslate.feature.session.loop.SessionLoopController
 import com.lunatic.quicktranslate.feature.session.playback.SessionPlaybackCoordinator
 import com.lunatic.quicktranslate.player.core.SessionPlayer
@@ -12,8 +16,6 @@ import com.lunatic.quicktranslate.feature.session.transcription.SessionTranscrip
 import com.lunatic.quicktranslate.feature.transcription.TranscriptionStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -28,6 +30,9 @@ class SessionViewModel(
     private val transcriptionCoordinator: SessionTranscriptionCoordinator,
     private val loopController: SessionLoopController,
     private val playbackCoordinator: SessionPlaybackCoordinator,
+    private val enqueueProjectTranscodeTaskUseCase: EnqueueProjectTranscodeTaskUseCase,
+    private val bumpProjectTranscodeTaskPriorityUseCase: BumpProjectTranscodeTaskPriorityUseCase,
+    private val observeProjectTranscodeTaskUseCase: ObserveProjectTranscodeTaskUseCase
 ) : ViewModel() {
     private val importedMedia = ImportedSessionMedia(
         projectId = savedStateHandle[SessionNav.projectIdArg] ?: -1L,
@@ -49,14 +54,20 @@ class SessionViewModel(
     private val mutableEffect = MutableSharedFlow<SessionEffect>()
     val effect: SharedFlow<SessionEffect> = mutableEffect.asSharedFlow()
     val player = sessionPlayer.player
-    private var transcriptionJob: Job? = null
     private var hasAutoStartedPlaybackForCurrentTranscription = false
 
     init {
         if (importedMedia.uri.isNotBlank()) {
             sessionPlayer.setMedia(importedMedia.uri)
             restoreLastPlaybackPosition()
-            restoreSavedSubtitlesOrTranscribe()
+            observeProjectTranscodeTask()
+            viewModelScope.launch {
+                val projectId = importedMedia.projectId
+                if (projectId > 0L) {
+                    bumpProjectTranscodeTaskPriorityUseCase(projectId)
+                }
+            }
+            restoreSavedSubtitlesOrQueue()
         }
         viewModelScope.launch {
             sessionPlayer.state.collect { playback ->
@@ -87,7 +98,7 @@ class SessionViewModel(
             is SessionIntent.LoopCountChanged -> onLoopCountChanged(intent.option)
             SessionIntent.StartLoopClicked -> startLoop()
             SessionIntent.StopLoopClicked -> stopLoop()
-            SessionIntent.RetryTranscriptionClicked -> startMockTranscription()
+            SessionIntent.RetryTranscriptionClicked -> startTranscription()
         }
     }
 
@@ -210,27 +221,26 @@ class SessionViewModel(
         evaluation.seekToMs?.let(sessionPlayer::seekTo)
     }
 
-    private fun startMockTranscription() {
-        if (transcriptionJob?.isActive == true) {
-            return
-        }
-        transcriptionJob = viewModelScope.launch {
-            runMockTranscription()
+    private fun startTranscription() {
+        viewModelScope.launch {
+            queueTranscodeAndPrioritize()
         }
     }
 
-    private fun restoreSavedSubtitlesOrTranscribe() {
-        if (transcriptionJob?.isActive == true) {
-            return
-        }
-        transcriptionJob = viewModelScope.launch {
+    private fun restoreSavedSubtitlesOrQueue() {
+        viewModelScope.launch {
             mutableState.value = loopController.restorePersistedConfig(
                 projectId = importedMedia.projectId,
                 state = mutableState.value
             )
             val restored = restoreSavedSubtitles()
             if (!restored) {
-                runMockTranscription()
+                mutableState.value = mutableState.value.copy(
+                    transcriptionStatus = TranscriptionStatus.QUEUED,
+                    transcriptionProgress = null,
+                    transcriptionError = null
+                )
+                queueTranscodeAndPrioritize()
             }
         }
     }
@@ -263,80 +273,94 @@ class SessionViewModel(
             selectedRangeEndIndex = null
         )
         mutableState.value = loopController.applyRestoredSelectionIfValid(mutableState.value)
+        autoStartPlaybackIfNeeded(storedSubtitles)
         return true
     }
 
-    private suspend fun runMockTranscription() {
+    private suspend fun queueTranscodeAndPrioritize() {
+        val projectId = importedMedia.projectId
+        if (projectId <= 0L) {
+            return
+        }
         stopLoop()
         hasAutoStartedPlaybackForCurrentTranscription = false
-        mutableState.value = mutableState.value.copy(
-            transcriptionStatus = TranscriptionStatus.QUEUED,
-            transcriptionProgress = 0,
-            transcriptionError = null,
-            subtitles = emptyList(),
-            activeSubtitleIndex = -1,
-            selectedRangeStartIndex = null,
-            selectedRangeEndIndex = null
+        enqueueProjectTranscodeTaskUseCase(
+            projectId = projectId,
+            mediaUri = importedMedia.uri
         )
-        delay(250L)
-        mutableState.value = mutableState.value.copy(
-            transcriptionStatus = TranscriptionStatus.PROCESSING,
-            transcriptionProgress = 0
-        )
-        transcriptionCoordinator.transcribeAndPersist(
-            projectId = importedMedia.projectId,
-            mediaUri = importedMedia.uri,
-            onProgress = { progress ->
-                viewModelScope.launch(Dispatchers.Main.immediate) {
-                    mutableState.value = mutableState.value.copy(
-                        transcriptionStatus = TranscriptionStatus.PROCESSING,
-                        transcriptionProgress = progress.coerceIn(0, 100)
-                    )
+        bumpProjectTranscodeTaskPriorityUseCase(projectId)
+    }
+
+    private fun observeProjectTranscodeTask() {
+        val projectId = importedMedia.projectId
+        if (projectId <= 0L) {
+            return
+        }
+        viewModelScope.launch {
+            observeProjectTranscodeTaskUseCase(projectId).collect { task ->
+                if (task == null) {
+                    return@collect
                 }
-            },
-            onPartialSubtitles = { subtitles ->
-                viewModelScope.launch(Dispatchers.Main.immediate) {
-                    mutableState.value = mutableState.value.copy(
-                        transcriptionStatus = TranscriptionStatus.PROCESSING,
-                        subtitles = subtitles,
-                        activeSubtitleIndex = -1
-                    )
-                    if (!hasAutoStartedPlaybackForCurrentTranscription && subtitles.isNotEmpty()) {
-                        hasAutoStartedPlaybackForCurrentTranscription = true
-                        val firstStart = subtitles.first().startMs.coerceAtLeast(0L)
-                        sessionPlayer.seekTo(firstStart)
-                        sessionPlayer.play()
+                when (task.status) {
+                    ProjectTranscodeTaskStatus.PENDING -> {
+                        mutableState.value = mutableState.value.copy(
+                            transcriptionStatus = TranscriptionStatus.QUEUED,
+                            transcriptionProgress = null
+                        )
+                    }
+
+                    ProjectTranscodeTaskStatus.RUNNING -> {
+                        mutableState.value = mutableState.value.copy(
+                            transcriptionStatus = TranscriptionStatus.PROCESSING,
+                            transcriptionProgress = null,
+                            transcriptionError = null
+                        )
+                    }
+
+                    ProjectTranscodeTaskStatus.SUCCEEDED -> {
+                        val restored = restoreSavedSubtitles()
+                        if (!restored) {
+                            mutableState.value = mutableState.value.copy(
+                                transcriptionStatus = TranscriptionStatus.FAILED,
+                                transcriptionProgress = null,
+                                transcriptionError = "Transcription finished, but no usable subtitles were detected."
+                            )
+                        }
+                    }
+
+                    ProjectTranscodeTaskStatus.FAILED -> {
+                        mutableState.value = mutableState.value.copy(
+                            transcriptionStatus = TranscriptionStatus.FAILED,
+                            transcriptionProgress = null,
+                            transcriptionError = task.errorMessage ?: "Transcription failed. Please retry."
+                        )
+                    }
+
+                    ProjectTranscodeTaskStatus.CANCELED -> {
+                        mutableState.value = mutableState.value.copy(
+                            transcriptionStatus = TranscriptionStatus.FAILED,
+                            transcriptionProgress = null,
+                            transcriptionError = "Transcription was canceled."
+                        )
                     }
                 }
             }
-        ).onSuccess { uiSubtitles ->
-            val isEmptyResult = uiSubtitles.isEmpty()
-            mutableState.value = mutableState.value.copy(
-                transcriptionStatus = TranscriptionStatus.SUCCESS,
-                transcriptionProgress = 100,
-                transcriptionError = if (isEmptyResult) {
-                    "Transcription finished, but no usable subtitles were detected."
-                } else {
-                    null
-                },
-                subtitles = uiSubtitles
-            )
-            mutableState.value = loopController.applyRestoredSelectionIfValid(mutableState.value)
-        }.onFailure { throwable ->
-            mutableState.value = mutableState.value.copy(
-                transcriptionStatus = TranscriptionStatus.FAILED,
-                transcriptionProgress = null,
-                transcriptionError = throwable.message ?: "Transcription failed. Please retry.",
-                subtitles = emptyList(),
-                activeSubtitleIndex = -1
-            )
         }
+    }
+
+    private fun autoStartPlaybackIfNeeded(subtitles: List<SubtitleSegment>) {
+        if (hasAutoStartedPlaybackForCurrentTranscription || subtitles.isEmpty()) {
+            return
+        }
+        hasAutoStartedPlaybackForCurrentTranscription = true
+        val firstStart = subtitles.first().startMs.coerceAtLeast(0L)
+        sessionPlayer.seekTo(firstStart)
+        sessionPlayer.play()
     }
 
     override fun onCleared() {
         persistPlaybackPosition()
         loopController.clear()
-        transcriptionJob?.cancel()
         sessionPlayer.release()
         super.onCleared()
     }

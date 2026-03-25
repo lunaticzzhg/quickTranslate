@@ -7,11 +7,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.lunatic.quicktranslate.feature.home.HomeRoute
+import com.lunatic.quicktranslate.feature.home.TranscodeTasksRoute
 import com.lunatic.quicktranslate.feature.session.ImportedSessionMedia
 import com.lunatic.quicktranslate.feature.session.SessionNav
 import com.lunatic.quicktranslate.feature.session.SessionRoute
 
 private const val HOME_ROUTE = "home"
+private const val TRANSCODE_TASKS_ROUTE = "transcode_tasks"
 
 @Composable
 fun AppNavHost() {
@@ -23,6 +25,28 @@ fun AppNavHost() {
     ) {
         composable(route = HOME_ROUTE) {
             HomeRoute(
+                onNavigateToSession = { projectId, media ->
+                    navController.navigate(
+                        SessionNav.createRoute(
+                            ImportedSessionMedia(
+                                projectId = projectId,
+                                uri = media.uri,
+                                displayName = media.displayName,
+                                mimeType = media.mimeType,
+                                durationMs = media.durationMs
+                            )
+                        )
+                    )
+                },
+                onNavigateToTranscodeTasks = {
+                    navController.navigate(TRANSCODE_TASKS_ROUTE)
+                }
+            )
+        }
+
+        composable(route = TRANSCODE_TASKS_ROUTE) {
+            TranscodeTasksRoute(
+                onNavigateBack = { navController.popBackStack() },
                 onNavigateToSession = { projectId, media ->
                     navController.navigate(
                         SessionNav.createRoute(

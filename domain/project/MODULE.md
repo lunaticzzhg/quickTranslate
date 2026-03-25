@@ -15,6 +15,12 @@
 - `ProjectSubtitleRepository` 字幕仓库接口
 - `ProjectLoopConfigRepository` 循环配置仓库接口
 - `ProjectPlaybackStateRepository` 播放状态仓库接口
+- `ProjectTranscodeTask` 转码任务领域实体
+- `ProjectTranscodeTaskStatus` 转码任务状态枚举
+- `ProjectTranscodeTaskType` 转码任务类型常量
+- `ProjectTranscodeTaskRepository` 转码任务仓库接口
+- `ProjectTranscodeQueueEngine` 转码队列引擎接口
+- `ProjectTranscodeTaskExecutor` 转码任务执行器接口
 - `CreateProjectUseCase`
 - `ObserveRecentProjectsUseCase`
 - `DeleteProjectUseCase`
@@ -25,6 +31,11 @@
 - `ReplaceProjectSubtitlesUseCase`
 - `GetProjectLoopConfigUseCase`
 - `SaveProjectLoopConfigUseCase`
+- `EnqueueProjectTranscodeTaskUseCase`
+- `BumpProjectTranscodeTaskPriorityUseCase`
+- `ObserveProjectTranscodeTaskUseCase`
+- `ObserveTranscodeDashboardTasksUseCase`
+- `RestoreAndResumeProjectTranscodeQueueUseCase`
 - `di/ProjectDomainModule.kt`
 
 ## 3. 对外暴露能力

@@ -7,7 +7,9 @@ import com.lunatic.quicktranslate.domain.project.model.Project
 import com.lunatic.quicktranslate.domain.project.model.SubtitleStatus
 import com.lunatic.quicktranslate.domain.project.usecase.CreateProjectUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.DeleteProjectUseCase
+import com.lunatic.quicktranslate.domain.project.usecase.EnqueueProjectTranscodeTaskUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.ObserveRecentProjectsUseCase
+import com.lunatic.quicktranslate.domain.project.usecase.RestoreAndResumeProjectTranscodeQueueUseCase
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -22,13 +24,16 @@ import kotlinx.coroutines.flow.asStateFlow
 class HomeViewModel(
     private val createProjectUseCase: CreateProjectUseCase,
     private val deleteProjectUseCase: DeleteProjectUseCase,
-    observeRecentProjectsUseCase: ObserveRecentProjectsUseCase
+    observeRecentProjectsUseCase: ObserveRecentProjectsUseCase,
+    private val restoreAndResumeProjectTranscodeQueueUseCase: RestoreAndResumeProjectTranscodeQueueUseCase,
+    private val enqueueProjectTranscodeTaskUseCase: EnqueueProjectTranscodeTaskUseCase
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(HomeState())
     val state: StateFlow<HomeState> = mutableState.asStateFlow()
 
     private val mutableEffect = MutableSharedFlow<HomeEffect>()
     val effect: SharedFlow<HomeEffect> = mutableEffect.asSharedFlow()
+    private var queueRestoredAfterHomeLoaded = false
 
     init {
         viewModelScope.launch {
@@ -38,6 +43,12 @@ class HomeViewModel(
                         project.toRecentProjectUi()
                     }
                 )
+                if (!queueRestoredAfterHomeLoaded) {
+                    queueRestoredAfterHomeLoaded = true
+                    runCatching {
+                        restoreAndResumeProjectTranscodeQueueUseCase()
+                    }
+                }
             }
         }
     }
@@ -45,6 +56,7 @@ class HomeViewModel(
     fun onIntent(intent: HomeIntent) {
         when (intent) {
             HomeIntent.PrimaryActionClicked -> emitEffect(HomeEffect.LaunchFilePicker)
+            HomeIntent.TranscodeEntryClicked -> emitEffect(HomeEffect.NavigateToTranscodeTasks)
             is HomeIntent.RecentProjectClicked -> openRecentProject(intent.projectId)
             is HomeIntent.MediaImported -> createProjectThenNavigate(intent.media)
             is HomeIntent.MediaImportFailed -> emitEffect(HomeEffect.ShowError(intent.message))
@@ -66,6 +78,12 @@ class HomeViewModel(
                     )
                 )
             }.onSuccess { project ->
+                runCatching {
+                    enqueueProjectTranscodeTaskUseCase(
+                        projectId = project.id,
+                        mediaUri = media.uri
+                    )
+                }
                 emitEffect(
                     HomeEffect.NavigateToSession(
                         projectId = project.id,

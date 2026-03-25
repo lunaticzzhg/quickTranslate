@@ -7,6 +7,12 @@ import com.lunatic.quicktranslate.feature.session.loop.SessionLoopController
 import com.lunatic.quicktranslate.feature.session.playback.SessionPlaybackCoordinator
 import com.lunatic.quicktranslate.feature.session.transcription.EmbeddedWhisperConfigProvider
 import com.lunatic.quicktranslate.feature.session.transcription.SessionTranscriptionCoordinator
+import com.lunatic.quicktranslate.feature.session.transcription.SessionMediaPrepareStage
+import com.lunatic.quicktranslate.feature.session.transcription.SessionProjectTranscodeTaskExecutor
+import com.lunatic.quicktranslate.feature.session.transcription.SessionSubtitlePersistStage
+import com.lunatic.quicktranslate.feature.session.transcription.SessionTranscriptionExecuteStage
+import com.lunatic.quicktranslate.feature.session.transcription.SessionTranscriptionPipeline
+import com.lunatic.quicktranslate.domain.project.repository.ProjectTranscodeTaskExecutor
 import com.lunatic.quicktranslate.feature.transcription.MockTranscriptionService
 import com.lunatic.quicktranslate.feature.transcription.TranscriptionService
 import com.lunatic.quicktranslate.feature.transcription.WhisperCliConfig
@@ -49,6 +55,17 @@ val sessionModule = module {
     }
     factory { SessionLoopController(get(), get()) }
     factory { SessionPlaybackCoordinator(get(), get()) }
-    factory { SessionTranscriptionCoordinator(androidContext(), get(), get(), get(), get()) }
+    factory { SessionMediaPrepareStage(androidContext()) }
+    factory { SessionTranscriptionExecuteStage(get()) }
+    factory { SessionSubtitlePersistStage(get(), get()) }
+    factory {
+        SessionTranscriptionPipeline(
+            prepareStage = get(),
+            executeStage = get(),
+            persistStage = get()
+        )
+    }
+    factory<ProjectTranscodeTaskExecutor> { SessionProjectTranscodeTaskExecutor(get()) }
+    factory { SessionTranscriptionCoordinator(get(), get()) }
     viewModelOf(::SessionViewModel)
 }

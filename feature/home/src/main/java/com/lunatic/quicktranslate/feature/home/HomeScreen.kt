@@ -45,6 +45,12 @@ fun HomeScreen(
         Button(onClick = { onIntent(HomeIntent.PrimaryActionClicked) }) {
             Text(text = state.primaryActionLabel)
         }
+        Button(
+            onClick = { onIntent(HomeIntent.TranscodeEntryClicked) },
+            modifier = Modifier.padding(top = 12.dp)
+        ) {
+            Text(text = state.transcodeEntryLabel)
+        }
 
         LazyColumn(
             modifier = Modifier
@@ -108,6 +114,7 @@ fun HomeScreen(
                     Text(text = "Cancel")
                 }
             }
-        )
+            )
     }
+
 }

@@ -12,6 +12,11 @@
 - `loop/SessionLoopController`（循环状态机拆分）
 - `playback/SessionPlaybackCoordinator`（播放位置恢复/持久化拆分）
 - `transcription/SessionTranscriptionCoordinator`（转写与字幕恢复拆分）
+- `transcription/SessionTranscriptionPipeline`（按阶段执行转写：媒体准备 -> 转写执行 -> 字幕持久化）
+- `transcription/SessionMediaPrepareStage`（媒体准备阶段）
+- `transcription/SessionTranscriptionExecuteStage`（转写执行阶段）
+- `transcription/SessionSubtitlePersistStage`（字幕持久化阶段）
+- `transcription/SessionProjectTranscodeTaskExecutor`（队列任务执行器，桥接到转写 pipeline）
 - `SessionNav`（路由参数协议，包含 `projectId`）
 - `di/SessionModule.kt`
 - Media3 播放控制与播放进度展示
@@ -22,6 +27,7 @@
 - 支持真实本地转写模式（whisper.cpp CLI）与 mock 模式切换
 - 转写状态回写项目记录（用于首页状态联动）
 - 学习页重进时优先恢复已落库字幕，避免重复触发 mock 转写
+- 学习页通过“转码任务队列”触发转写（入队+提权+状态观察），而非页面内直接长任务执行
 - 循环配置持久化（选区与循环次数）并在重进时恢复
 - 最近播放位置恢复（进入学习页自动 seek）与退出时保存
 

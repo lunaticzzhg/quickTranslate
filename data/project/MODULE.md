@@ -10,16 +10,21 @@
 - `RoomProjectSubtitleRepository`
 - `RoomProjectLoopConfigRepository`
 - `RoomProjectPlaybackStateRepository`
+- `RoomProjectTranscodeTaskRepository`
 - `local/ProjectEntity`、`ProjectDao`、`QuickTranslateDatabase`
 - `local/ProjectSubtitleEntity`、`ProjectSubtitleDao`
 - `local/ProjectLoopConfigEntity`、`ProjectLoopConfigDao`
 - `local/ProjectPlaybackStateEntity`、`ProjectPlaybackStateDao`
+- `local/ProjectTranscodeTaskEntity`、`ProjectTranscodeTaskDao`
+- `ProjectTranscodeTaskMapper`
 - `SubtitleStatusMapper`、`ProjectMapper`、`ProjectSubtitleMapper`、`ProjectLoopConfigMapper`
 - `di/ProjectDataModule.kt`
 - 支持项目字幕状态回写（`subtitleStatus` + `updatedAtEpochMs`）
 - 支持最近播放位置持久化（独立播放状态表）
 - 支持按项目持久化字幕列表并替换更新
 - 支持按项目持久化循环配置（选区起止 + 次数选项）
+- 支持转码任务队列持久化（入队、提权、领取、状态回写、运行中恢复）
+- 支持首页任务看板查询（执行中/排队中/失败）
 
 ## 3. 对外暴露能力
 
