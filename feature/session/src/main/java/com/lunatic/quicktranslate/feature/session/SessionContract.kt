@@ -25,7 +25,8 @@ data class SessionState(
     val durationMs: Long = 0L,
     val subtitles: List<SubtitleSegment> = emptyList(),
     val activeSubtitleIndex: Int = -1,
-    val selectedSubtitleId: Long? = null,
+    val selectedRangeStartIndex: Int? = null,
+    val selectedRangeEndIndex: Int? = null,
     val loopCountOption: LoopCountOption = LoopCountOption.THREE,
     val isLooping: Boolean = false,
     val loopRemainingCount: Int? = null

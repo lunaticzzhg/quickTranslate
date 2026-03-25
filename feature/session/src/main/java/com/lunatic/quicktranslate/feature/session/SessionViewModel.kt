@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lunatic.quicktranslate.player.core.SessionPlayer
 import com.lunatic.quicktranslate.feature.session.subtitle.MockSubtitleProvider
+import com.lunatic.quicktranslate.feature.session.subtitle.SubtitleSegment
 import com.lunatic.quicktranslate.feature.session.subtitle.SubtitleMatcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -19,7 +20,8 @@ class SessionViewModel(
     private val sessionPlayer: SessionPlayer
 ) : ViewModel() {
     private data class LoopSession(
-        val segment: com.lunatic.quicktranslate.feature.session.subtitle.SubtitleSegment,
+        val startMs: Long,
+        val endMs: Long,
         val totalRepeatCount: Int?,
         val remainingCount: Int?
     )
@@ -107,12 +109,28 @@ class SessionViewModel(
         }
     }
 
-    private fun onSubtitleClicked(segment: com.lunatic.quicktranslate.feature.session.subtitle.SubtitleSegment) {
+    private fun onSubtitleClicked(segment: SubtitleSegment) {
         if (mutableState.value.isLooping) {
             stopLoop()
         }
+        val subtitles = mutableState.value.subtitles
+        val clickedIndex = subtitles.indexOfFirst { it.id == segment.id }
+        if (clickedIndex < 0) {
+            return
+        }
+
+        val start = mutableState.value.selectedRangeStartIndex
+        val end = mutableState.value.selectedRangeEndIndex
+
+        val (newStart, newEnd) = when {
+            start == null -> clickedIndex to clickedIndex
+            end != null && start != end -> clickedIndex to clickedIndex
+            else -> minOf(start, clickedIndex) to maxOf(start, clickedIndex)
+        }
+
         mutableState.value = mutableState.value.copy(
-            selectedSubtitleId = segment.id
+            selectedRangeStartIndex = newStart,
+            selectedRangeEndIndex = newEnd
         )
         sessionPlayer.seekTo(segment.startMs)
     }
@@ -135,30 +153,46 @@ class SessionViewModel(
 
     private fun startLoop() {
         val currentState = mutableState.value
-        val segmentByCurrentPosition = currentState.subtitles.getOrNull(
-            SubtitleMatcher.findActiveIndex(
-                segments = currentState.subtitles,
-                positionMs = currentState.currentPositionMs
-            )
+        val segmentIndexByCurrentPosition = SubtitleMatcher.findActiveIndex(
+            segments = currentState.subtitles,
+            positionMs = currentState.currentPositionMs
         )
-        val selectedSegment = segmentByCurrentPosition
-            ?: currentState.subtitles.firstOrNull { it.id == currentState.selectedSubtitleId }
-            ?: currentState.subtitles.getOrNull(currentState.activeSubtitleIndex)
-            ?: return
+        val selectedStart = currentState.selectedRangeStartIndex
+        val selectedEnd = currentState.selectedRangeEndIndex
+        val fallbackSingleIndex = if (segmentIndexByCurrentPosition >= 0) {
+            segmentIndexByCurrentPosition
+        } else {
+            currentState.activeSubtitleIndex
+        }
+
+        val (loopStartIndex, loopEndIndex) = if (selectedStart != null && selectedEnd != null) {
+            minOf(selectedStart, selectedEnd) to maxOf(selectedStart, selectedEnd)
+        } else {
+            val idx = fallbackSingleIndex
+            if (idx < 0 || idx >= currentState.subtitles.size) {
+                return
+            }
+            idx to idx
+        }
+
+        val startSegment = currentState.subtitles.getOrNull(loopStartIndex) ?: return
+        val endSegment = currentState.subtitles.getOrNull(loopEndIndex) ?: return
 
         val repeatCount = currentState.loopCountOption.repeatCount
         loopSession = LoopSession(
-            segment = selectedSegment,
+            startMs = startSegment.startMs,
+            endMs = endSegment.endMs,
             totalRepeatCount = repeatCount,
             remainingCount = repeatCount
         )
         loopJumpInProgress = false
         mutableState.value = mutableState.value.copy(
-            selectedSubtitleId = selectedSegment.id,
+            selectedRangeStartIndex = loopStartIndex,
+            selectedRangeEndIndex = loopEndIndex,
             isLooping = true,
             loopRemainingCount = repeatCount
         )
-        sessionPlayer.seekTo(selectedSegment.startMs)
+        sessionPlayer.seekTo(startSegment.startMs)
         sessionPlayer.play()
     }
 
@@ -173,9 +207,10 @@ class SessionViewModel(
 
     private fun evaluateLoop(currentPositionMs: Long) {
         val activeLoop = loopSession ?: return
-        val segment = activeLoop.segment
+        val startMs = activeLoop.startMs
+        val endMs = activeLoop.endMs
 
-        if (currentPositionMs <= segment.startMs + 150L) {
+        if (currentPositionMs <= startMs + 150L) {
             loopJumpInProgress = false
         }
 
@@ -183,21 +218,21 @@ class SessionViewModel(
             return
         }
 
-        if (currentPositionMs < segment.endMs) {
+        if (currentPositionMs < endMs) {
             return
         }
 
         loopJumpInProgress = true
         val remaining = activeLoop.remainingCount
         if (remaining == null) {
-            sessionPlayer.seekTo(segment.startMs)
+            sessionPlayer.seekTo(startMs)
             return
         }
 
         val updatedRemaining = remaining - 1
         if (updatedRemaining <= 0) {
             sessionPlayer.pause()
-            sessionPlayer.seekTo(segment.startMs)
+            sessionPlayer.seekTo(startMs)
             stopLoop()
             return
         }
@@ -206,7 +241,7 @@ class SessionViewModel(
         mutableState.value = mutableState.value.copy(
             loopRemainingCount = updatedRemaining
         )
-        sessionPlayer.seekTo(segment.startMs)
+        sessionPlayer.seekTo(startMs)
     }
 
     override fun onCleared() {
