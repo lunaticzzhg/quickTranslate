@@ -19,6 +19,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
@@ -85,7 +86,10 @@ fun SessionScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = transcriptionStatusLabel(state.transcriptionStatus),
+                text = transcriptionStatusLabel(
+                    status = state.transcriptionStatus,
+                    progress = state.transcriptionProgress
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = if (state.transcriptionStatus == TranscriptionStatus.FAILED) {
                     MaterialTheme.colorScheme.error
@@ -93,11 +97,22 @@ fun SessionScreen(
                     MaterialTheme.colorScheme.onSurfaceVariant
                 }
             )
-            if (state.transcriptionStatus == TranscriptionStatus.FAILED) {
+            if (
+                state.transcriptionStatus == TranscriptionStatus.FAILED ||
+                (state.transcriptionStatus == TranscriptionStatus.SUCCESS && state.subtitles.isEmpty())
+            ) {
                 Button(onClick = { onIntent(SessionIntent.RetryTranscriptionClicked) }) {
                     Text(text = "Retry")
                 }
             }
+        }
+
+        if (state.transcriptionStatus == TranscriptionStatus.PROCESSING) {
+            val progress = (state.transcriptionProgress ?: 0).coerceIn(0, 100)
+            LinearProgressIndicator(
+                progress = { progress / 100f },
+                modifier = Modifier.fillMaxWidth()
+            )
         }
 
         if (state.hasVideo) {
@@ -192,17 +207,25 @@ fun SessionScreen(
         ) {
             if (state.subtitles.isEmpty()) {
                 item(key = "subtitle-empty") {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    if (state.transcriptionStatus == TranscriptionStatus.SUCCESS) {
+                        EmptyTranscriptionGuidanceCard(
+                            state = state,
+                            onRetry = { onIntent(SessionIntent.RetryTranscriptionClicked) },
+                            onChooseAnother = { onIntent(SessionIntent.BackClicked) }
                         )
-                    ) {
-                        Text(
-                            text = subtitlePlaceholderText(state),
-                            modifier = Modifier.padding(12.dp),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                    } else {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        ) {
+                            Text(
+                                text = subtitlePlaceholderText(state),
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                     }
                 }
             } else {
@@ -330,11 +353,69 @@ fun SessionScreen(
     }
 }
 
-private fun transcriptionStatusLabel(status: TranscriptionStatus): String {
+@Composable
+private fun EmptyTranscriptionGuidanceCard(
+    state: SessionState,
+    onRetry: () -> Unit,
+    onChooseAnother: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "Transcription finished, but no subtitles were generated.",
+                style = MaterialTheme.typography.titleSmall
+            )
+            Text(
+                text = state.transcriptionError
+                    ?: "This is usually caused by low speech clarity, strong background noise, or non-English audio with the current model.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                text = "Suggestions:",
+                style = MaterialTheme.typography.labelLarge
+            )
+            Text(
+                text = "• Use a 10-30 second clip with clear speech.\n" +
+                    "• Ensure the audio language matches model capability.\n" +
+                    "• Increase media volume and reduce background noise.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(onClick = onRetry) {
+                    Text(text = "Retry")
+                }
+                Button(onClick = onChooseAnother) {
+                    Text(text = "Choose Another")
+                }
+            }
+        }
+    }
+}
+
+private fun transcriptionStatusLabel(
+    status: TranscriptionStatus,
+    progress: Int?
+): String {
     return when (status) {
         TranscriptionStatus.IDLE -> "Transcription: idle"
         TranscriptionStatus.QUEUED -> "Transcription: queued"
-        TranscriptionStatus.PROCESSING -> "Transcription: processing..."
+        TranscriptionStatus.PROCESSING -> {
+            val value = progress?.coerceIn(0, 100)
+            if (value != null) "Transcription: processing... $value%" else "Transcription: processing..."
+        }
         TranscriptionStatus.SUCCESS -> "Transcription: ready"
         TranscriptionStatus.FAILED -> "Transcription: failed"
     }
@@ -344,7 +425,10 @@ private fun subtitlePlaceholderText(state: SessionState): String {
     return when (state.transcriptionStatus) {
         TranscriptionStatus.IDLE -> "No subtitles yet."
         TranscriptionStatus.QUEUED -> "Transcription queued. Preparing subtitle generation."
-        TranscriptionStatus.PROCESSING -> "Generating subtitles..."
+        TranscriptionStatus.PROCESSING -> {
+            val value = state.transcriptionProgress?.coerceIn(0, 100)
+            if (value != null) "Generating subtitles... $value%" else "Generating subtitles..."
+        }
         TranscriptionStatus.SUCCESS -> "No subtitles generated."
         TranscriptionStatus.FAILED -> state.transcriptionError ?: "Transcription failed. Please retry."
     }

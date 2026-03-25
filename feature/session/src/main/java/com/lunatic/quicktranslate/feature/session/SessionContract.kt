@@ -32,6 +32,7 @@ data class SessionState(
     val isLooping: Boolean = false,
     val loopRemainingCount: Int? = null,
     val transcriptionStatus: TranscriptionStatus = TranscriptionStatus.IDLE,
+    val transcriptionProgress: Int? = null,
     val transcriptionError: String? = null
 )
 

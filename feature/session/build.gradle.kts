@@ -1,3 +1,10 @@
+fun quoteForBuildConfig(raw: String): String {
+    val escaped = raw
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+    return "\"$escaped\""
+}
+
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.compose)
@@ -13,6 +20,42 @@ android {
 
     defaultConfig {
         minSdk = 29
+        buildConfigField(
+            "String",
+            "TRANSCRIPTION_MODE",
+            quoteForBuildConfig(
+                providers.gradleProperty("quicktranslate.transcription.mode")
+                    .orElse("mock")
+                    .get()
+            )
+        )
+        buildConfigField(
+            "String",
+            "WHISPER_CLI_PATH",
+            quoteForBuildConfig(
+                providers.gradleProperty("quicktranslate.whisper.cli.path")
+                    .orElse("")
+                    .get()
+            )
+        )
+        buildConfigField(
+            "String",
+            "WHISPER_MODEL_PATH",
+            quoteForBuildConfig(
+                providers.gradleProperty("quicktranslate.whisper.model.path")
+                    .orElse("")
+                    .get()
+            )
+        )
+        buildConfigField(
+            "String",
+            "WHISPER_LANGUAGE",
+            quoteForBuildConfig(
+                providers.gradleProperty("quicktranslate.whisper.language")
+                    .orElse("en")
+                    .get()
+            )
+        )
     }
 
     compileOptions {
@@ -22,6 +65,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

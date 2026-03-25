@@ -23,3 +23,8 @@ captures/
 
 # Logs
 *.log
+
+# Generated local whisper assets and toolchain cache
+app/src/main/whisper-assets/
+app/src/main/jniLibs/
+tools/.cache/

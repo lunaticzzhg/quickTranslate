@@ -2,10 +2,21 @@ package com.lunatic.quicktranslate.feature.transcription
 
 import kotlinx.coroutines.delay
 
-class MockTranscriptionService {
-    suspend fun transcribe(mediaUri: String): List<TranscriptionSegment> {
-        require(mediaUri.isNotBlank()) { "Media uri is required for transcription." }
+class MockTranscriptionService : TranscriptionService {
+    override suspend fun transcribe(
+        mediaPath: String,
+        onProgress: ((Int) -> Unit)?
+    ): List<TranscriptionSegment> {
+        require(mediaPath.isNotBlank()) { "Media path is required for transcription." }
+        onProgress?.invoke(5)
+        delay(200L)
+        onProgress?.invoke(25)
+        delay(250L)
+        onProgress?.invoke(55)
+        delay(300L)
+        onProgress?.invoke(80)
         delay(1200L)
+        onProgress?.invoke(100)
         return listOf(
             TranscriptionSegment(0L, 2800L, "Welcome to your listening practice session."),
             TranscriptionSegment(2800L, 6200L, "Tap any subtitle line to jump and replay quickly."),

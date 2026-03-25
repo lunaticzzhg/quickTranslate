@@ -8,11 +8,15 @@
 
 - `TranscriptionStatus` 状态定义（idle/queued/processing/success/failed）
 - `TranscriptionSegment` 转写片段模型
+- `TranscriptionService` 统一转写接口
 - `MockTranscriptionService` mock 转写实现（用于驱动 UI 联调）
+- `WhisperCliTranscriptionService` 真实本地转写实现（whisper.cpp CLI）
+- `SrtParser`（解析 whisper 输出字幕）
+- `WhisperCliConfig`（真实引擎配置）
 
 ## 3. 对外暴露能力
 
-- 暴露 mock 转写服务与状态模型，供学习页接入字幕生成流程
+- 暴露转写接口与两种实现（mock / whisper-cli），供学习页按配置接入
 
 ## 4. 依赖关系
 
@@ -21,3 +25,4 @@
 ## 5. 维护注意事项
 
 - 状态模型保持稳定、可序列化，便于后续持久化与恢复
+- Whisper Android 集成与排障文档见：`devplan/WHISPER_INTEGRATION.md`

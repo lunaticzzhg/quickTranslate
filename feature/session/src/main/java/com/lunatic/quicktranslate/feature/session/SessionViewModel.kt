@@ -254,6 +254,7 @@ class SessionViewModel(
         }
         mutableState.value = mutableState.value.copy(
             transcriptionStatus = TranscriptionStatus.SUCCESS,
+            transcriptionProgress = null,
             transcriptionError = null,
             subtitles = storedSubtitles,
             activeSubtitleIndex = -1,
@@ -268,6 +269,7 @@ class SessionViewModel(
         stopLoop()
         mutableState.value = mutableState.value.copy(
             transcriptionStatus = TranscriptionStatus.QUEUED,
+            transcriptionProgress = 0,
             transcriptionError = null,
             subtitles = emptyList(),
             activeSubtitleIndex = -1,
@@ -276,21 +278,35 @@ class SessionViewModel(
         )
         delay(250L)
         mutableState.value = mutableState.value.copy(
-            transcriptionStatus = TranscriptionStatus.PROCESSING
+            transcriptionStatus = TranscriptionStatus.PROCESSING,
+            transcriptionProgress = 0
         )
         transcriptionCoordinator.transcribeAndPersist(
             projectId = importedMedia.projectId,
-            mediaUri = importedMedia.uri
+            mediaUri = importedMedia.uri,
+            onProgress = { progress ->
+                mutableState.value = mutableState.value.copy(
+                    transcriptionStatus = TranscriptionStatus.PROCESSING,
+                    transcriptionProgress = progress.coerceIn(0, 100)
+                )
+            }
         ).onSuccess { uiSubtitles ->
+            val isEmptyResult = uiSubtitles.isEmpty()
             mutableState.value = mutableState.value.copy(
                 transcriptionStatus = TranscriptionStatus.SUCCESS,
-                transcriptionError = null,
+                transcriptionProgress = 100,
+                transcriptionError = if (isEmptyResult) {
+                    "Transcription finished, but no usable subtitles were detected."
+                } else {
+                    null
+                },
                 subtitles = uiSubtitles
             )
             mutableState.value = loopController.applyRestoredSelectionIfValid(mutableState.value)
         }.onFailure { throwable ->
             mutableState.value = mutableState.value.copy(
                 transcriptionStatus = TranscriptionStatus.FAILED,
+                transcriptionProgress = null,
                 transcriptionError = throwable.message ?: "Transcription failed. Please retry.",
                 subtitles = emptyList(),
                 activeSubtitleIndex = -1
