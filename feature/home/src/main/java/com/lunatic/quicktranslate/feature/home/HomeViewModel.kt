@@ -45,6 +45,7 @@ class HomeViewModel(
     fun onIntent(intent: HomeIntent) {
         when (intent) {
             HomeIntent.PrimaryActionClicked -> emitEffect(HomeEffect.LaunchFilePicker)
+            is HomeIntent.RecentProjectClicked -> openRecentProject(intent.projectId)
             is HomeIntent.MediaImported -> createProjectThenNavigate(intent.media)
             is HomeIntent.MediaImportFailed -> emitEffect(HomeEffect.ShowError(intent.message))
             is HomeIntent.DeleteProjectClicked -> showDeleteDialog(intent.projectId)
@@ -110,6 +111,9 @@ class HomeViewModel(
     private fun Project.toRecentProjectUi(): RecentProjectUi {
         return RecentProjectUi(
             id = id,
+            mediaUri = mediaUri,
+            mimeType = mimeType,
+            durationMs = durationMs,
             displayName = displayName,
             mediaTypeLabel = mimeType.toMediaTypeLabel(),
             subtitleStatusLabel = subtitleStatus.toStatusLabel(),
@@ -138,5 +142,23 @@ class HomeViewModel(
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
             .withZone(ZoneId.systemDefault())
         return formatter.format(Instant.ofEpochMilli(this))
+    }
+
+    private fun openRecentProject(projectId: Long) {
+        val project = mutableState.value.recentProjects.firstOrNull { it.id == projectId }
+        if (project == null) {
+            emitEffect(HomeEffect.ShowError("Project not found. Please refresh and retry."))
+            return
+        }
+        emitEffect(
+            HomeEffect.NavigateToSession(
+                ImportedMedia(
+                    uri = project.mediaUri,
+                    displayName = project.displayName,
+                    mimeType = project.mimeType,
+                    durationMs = project.durationMs
+                )
+            )
+        )
     }
 }

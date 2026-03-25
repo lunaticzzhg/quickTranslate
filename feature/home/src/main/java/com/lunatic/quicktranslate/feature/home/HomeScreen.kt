@@ -56,7 +56,10 @@ fun HomeScreen(
                 items = state.recentProjects,
                 key = { it.id }
             ) { project ->
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { onIntent(HomeIntent.RecentProjectClicked(project.id)) }
+                ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
                             text = project.displayName,

@@ -2,10 +2,15 @@ package com.lunatic.quicktranslate.feature.session
 
 data class SessionState(
     val title: String = "Learning Session",
-    val message: String = "Session detail page is ready. Media player and subtitle linkage will be added in next tasks.",
+    val message: String = "Use the controls below to practice with this media file.",
     val importedName: String = "Unknown file",
     val importedMime: String = "unknown",
     val importedDuration: String = "Unknown duration",
+    val isPlaying: Boolean = false,
+    val isLoading: Boolean = false,
+    val hasVideo: Boolean = false,
+    val currentPositionMs: Long = 0L,
+    val durationMs: Long = 0L,
     val backLabel: String = "Back To Home"
 )
 
@@ -18,6 +23,8 @@ data class ImportedSessionMedia(
 
 sealed interface SessionIntent {
     data object BackClicked : SessionIntent
+    data object PlayPauseClicked : SessionIntent
+    data class SeekToRequested(val positionMs: Long) : SessionIntent
 }
 
 sealed interface SessionEffect {

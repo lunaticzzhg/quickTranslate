@@ -23,6 +23,7 @@ fun SessionRoute(
 
     SessionScreen(
         state = state,
+        player = viewModel.player,
         onIntent = viewModel::onIntent
     )
 }

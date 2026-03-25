@@ -11,6 +11,7 @@
 - `SessionViewModel`
 - `SessionNav`（路由参数协议）
 - `di/SessionModule.kt`
+- Media3 播放控制与播放进度展示
 
 ## 3. 对外暴露能力
 
@@ -20,6 +21,7 @@
 ## 4. 依赖关系
 
 - 依赖 Compose、Lifecycle Compose、Koin Compose
+- 依赖 `player:core`
 
 ## 5. 维护注意事项
 

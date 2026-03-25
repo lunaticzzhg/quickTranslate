@@ -17,6 +17,9 @@ data class ImportedMedia(
 
 data class RecentProjectUi(
     val id: Long,
+    val mediaUri: String,
+    val mimeType: String,
+    val durationMs: Long,
     val displayName: String,
     val mediaTypeLabel: String,
     val subtitleStatusLabel: String,
@@ -25,6 +28,7 @@ data class RecentProjectUi(
 
 sealed interface HomeIntent {
     data object PrimaryActionClicked : HomeIntent
+    data class RecentProjectClicked(val projectId: Long) : HomeIntent
     data class MediaImported(val media: ImportedMedia) : HomeIntent
     data class MediaImportFailed(val message: String) : HomeIntent
     data class DeleteProjectClicked(val projectId: Long) : HomeIntent

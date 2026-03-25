@@ -25,6 +25,7 @@ dependencyResolutionManagement {
 rootProject.name = "QuickTranslate"
 include(":app")
 include(":core:common")
+include(":player:core")
 include(":domain:project")
 include(":data:project")
 include(":feature:home")
