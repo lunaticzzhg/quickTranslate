@@ -21,7 +21,8 @@ class SessionRemoteMediaDownloadStage(
 ) {
     suspend fun ensureLocalMedia(
         projectId: Long,
-        mediaUri: String
+        mediaUri: String,
+        onProgress: ((Int) -> Unit)? = null
     ): DownloadedTranscriptionMedia {
         return withContext(Dispatchers.IO) {
             val uri = Uri.parse(mediaUri)
@@ -46,6 +47,7 @@ class SessionRemoteMediaDownloadStage(
                 }
                 val body = networkResponse.body ?: throw IOException("Download body is empty.")
                 val contentType = body.contentType()?.toString()
+                val totalBytes = body.contentLength().takeIf { it > 0L }
                 val outputDirectory = File(
                     appContext.filesDir,
                     "projects/$projectId/media"
@@ -64,7 +66,22 @@ class SessionRemoteMediaDownloadStage(
                 }
                 body.byteStream().use { input ->
                     tempFile.outputStream().use { output ->
-                        input.copyTo(output)
+                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                        var bytesCopied = 0L
+                        while (true) {
+                            val read = input.read(buffer)
+                            if (read < 0) {
+                                break
+                            }
+                            output.write(buffer, 0, read)
+                            bytesCopied += read
+                            if (totalBytes != null && onProgress != null) {
+                                val percent = ((bytesCopied * 100L) / totalBytes)
+                                    .toInt()
+                                    .coerceIn(0, 100)
+                                onProgress(percent)
+                            }
+                        }
                     }
                 }
                 if (!tempFile.renameTo(targetFile)) {

@@ -13,6 +13,8 @@ data class TranscodeTaskUi(
     val mimeType: String,
     val durationMs: Long,
     val statusLabel: String,
+    val stageLabel: String,
+    val progressLabel: String?,
     val isFailed: Boolean,
     val errorMessage: String?
 )

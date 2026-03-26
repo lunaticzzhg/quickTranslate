@@ -30,10 +30,10 @@ class LinkImportViewModel(
                         )
                     )
                 )
-            }.onFailure {
+            }.onFailure { error ->
                 emitEffect(
                     LinkImportEffect.ShowError(
-                        "Failed to create project from link. Please retry."
+                        error.message ?: "Failed to create project from link. Please retry."
                     )
                 )
             }
@@ -53,4 +53,3 @@ sealed interface LinkImportEffect {
 
     data class ShowError(val message: String) : LinkImportEffect
 }
-

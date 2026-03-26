@@ -13,6 +13,7 @@ import com.lunatic.quicktranslate.domain.project.usecase.GetProjectSubtitlesUseC
 import com.lunatic.quicktranslate.domain.project.usecase.ObserveRecentProjectsUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.ObserveProjectTranscodeTaskUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.ReplaceProjectSubtitlesUseCase
+import com.lunatic.quicktranslate.domain.project.usecase.ResolvePlatformLinkUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.RestoreAndResumeProjectTranscodeQueueUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.SaveProjectLoopConfigUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.ObserveTranscodeDashboardTasksUseCase
@@ -23,8 +24,9 @@ import org.koin.dsl.module
 
 val projectDomainModule = module {
     factory { CreateProjectUseCase(get()) }
+    factory { ResolvePlatformLinkUseCase(get()) }
     factory { GetProjectByIdUseCase(get()) }
-    factory { CreateProjectFromUrlUseCase(get(), get(), get()) }
+    factory { CreateProjectFromUrlUseCase(get(), get(), get(), get()) }
     factory { GetProjectByMediaUriUseCase(get()) }
     factory { ObserveRecentProjectsUseCase(get()) }
     factory { DeleteProjectUseCase(get()) }

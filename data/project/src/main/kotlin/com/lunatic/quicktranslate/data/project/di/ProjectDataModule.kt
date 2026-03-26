@@ -6,7 +6,9 @@ import com.lunatic.quicktranslate.data.project.RoomProjectPlaybackStateRepositor
 import com.lunatic.quicktranslate.data.project.RoomProjectRepository
 import com.lunatic.quicktranslate.data.project.RoomProjectSubtitleRepository
 import com.lunatic.quicktranslate.data.project.RoomProjectTranscodeTaskRepository
+import com.lunatic.quicktranslate.data.project.DefaultPlatformLinkResolverRepository
 import com.lunatic.quicktranslate.data.project.local.QuickTranslateDatabase
+import com.lunatic.quicktranslate.domain.project.repository.PlatformLinkResolverRepository
 import com.lunatic.quicktranslate.domain.project.repository.ProjectLoopConfigRepository
 import com.lunatic.quicktranslate.domain.project.repository.ProjectPlaybackStateRepository
 import com.lunatic.quicktranslate.domain.project.repository.ProjectRepository
@@ -31,6 +33,7 @@ val projectDataModule = module {
     single { get<QuickTranslateDatabase>().projectPlaybackStateDao() }
     single { get<QuickTranslateDatabase>().projectTranscodeTaskDao() }
     single<ProjectRepository> { RoomProjectRepository(get()) }
+    single<PlatformLinkResolverRepository> { DefaultPlatformLinkResolverRepository() }
     single<ProjectSubtitleRepository> { RoomProjectSubtitleRepository(get()) }
     single<ProjectLoopConfigRepository> { RoomProjectLoopConfigRepository(get()) }
     single<ProjectPlaybackStateRepository> { RoomProjectPlaybackStateRepository(get()) }

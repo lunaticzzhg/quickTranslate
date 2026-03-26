@@ -1,6 +1,7 @@
 package com.lunatic.quicktranslate.domain.project.repository
 
 import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTask
+import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTaskStage
 import kotlinx.coroutines.flow.Flow
 
 interface ProjectTranscodeTaskRepository {
@@ -20,6 +21,12 @@ interface ProjectTranscodeTaskRepository {
     suspend fun markTaskSucceeded(taskId: Long, finishedAtEpochMs: Long)
 
     suspend fun markTaskFailed(taskId: Long, message: String?, finishedAtEpochMs: Long)
+
+    suspend fun updateRunningTaskProgress(
+        taskId: Long,
+        stage: ProjectTranscodeTaskStage,
+        progress: Int?
+    )
 
     suspend fun restoreRunningTasksToPending(updatedAtEpochMs: Long)
 

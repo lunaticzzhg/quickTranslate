@@ -9,12 +9,24 @@ data class ProjectTranscodeTask(
     val basePriority: Int,
     val boostSeq: Long,
     val retryCount: Int,
+    val stage: ProjectTranscodeTaskStage,
+    val progress: Int?,
     val errorMessage: String?,
     val createdAtEpochMs: Long,
     val updatedAtEpochMs: Long,
     val startedAtEpochMs: Long?,
     val finishedAtEpochMs: Long?
 )
+
+enum class ProjectTranscodeTaskStage {
+    QUEUED,
+    RESOLVING,
+    DOWNLOADING,
+    TRANSCRIBING,
+    SUCCEEDED,
+    FAILED,
+    CANCELED
+}
 
 enum class ProjectTranscodeTaskStatus {
     PENDING,

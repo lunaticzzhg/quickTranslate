@@ -59,6 +59,9 @@ interface ProjectTranscodeTaskDao {
         UPDATE project_transcode_tasks
         SET mediaUri = :mediaUri,
             boostSeq = :boostSeq,
+            stage = 'QUEUED',
+            progress = NULL,
+            errorMessage = NULL,
             updatedAtEpochMs = :updatedAtEpochMs
         WHERE id = :taskId
           AND status = 'PENDING'
@@ -75,6 +78,8 @@ interface ProjectTranscodeTaskDao {
         """
         UPDATE project_transcode_tasks
         SET mediaUri = :mediaUri,
+            stage = 'RESOLVING',
+            progress = 0,
             updatedAtEpochMs = :updatedAtEpochMs
         WHERE id = :taskId
           AND status = 'RUNNING'
@@ -117,6 +122,8 @@ interface ProjectTranscodeTaskDao {
         """
         UPDATE project_transcode_tasks
         SET status = 'RUNNING',
+            stage = 'RESOLVING',
+            progress = 0,
             startedAtEpochMs = :startedAtEpochMs,
             updatedAtEpochMs = :startedAtEpochMs
         WHERE id = :taskId AND status = 'PENDING'
@@ -128,6 +135,8 @@ interface ProjectTranscodeTaskDao {
         """
         UPDATE project_transcode_tasks
         SET status = 'SUCCEEDED',
+            stage = 'SUCCEEDED',
+            progress = 100,
             errorMessage = NULL,
             finishedAtEpochMs = :finishedAtEpochMs,
             updatedAtEpochMs = :finishedAtEpochMs
@@ -140,6 +149,7 @@ interface ProjectTranscodeTaskDao {
         """
         UPDATE project_transcode_tasks
         SET status = 'FAILED',
+            stage = 'FAILED',
             errorMessage = :errorMessage,
             finishedAtEpochMs = :finishedAtEpochMs,
             updatedAtEpochMs = :finishedAtEpochMs
@@ -152,6 +162,9 @@ interface ProjectTranscodeTaskDao {
         """
         UPDATE project_transcode_tasks
         SET status = 'PENDING',
+            stage = 'QUEUED',
+            progress = NULL,
+            errorMessage = NULL,
             startedAtEpochMs = NULL,
             finishedAtEpochMs = NULL,
             updatedAtEpochMs = :updatedAtEpochMs
@@ -159,6 +172,23 @@ interface ProjectTranscodeTaskDao {
         """
     )
     suspend fun restoreRunningToPending(updatedAtEpochMs: Long)
+
+    @Query(
+        """
+        UPDATE project_transcode_tasks
+        SET stage = :stage,
+            progress = :progress,
+            updatedAtEpochMs = :updatedAtEpochMs
+        WHERE id = :taskId
+          AND status = 'RUNNING'
+        """
+    )
+    suspend fun updateRunningTaskProgress(
+        taskId: Long,
+        stage: String,
+        progress: Int?,
+        updatedAtEpochMs: Long
+    )
 
     @Transaction
     suspend fun claimNextPendingTask(nowEpochMs: Long): ProjectTranscodeTaskEntity? {
@@ -171,6 +201,8 @@ interface ProjectTranscodeTaskDao {
             if (updatedRows > 0) {
                 return candidate.copy(
                     status = "RUNNING",
+                    stage = "RESOLVING",
+                    progress = 0,
                     startedAtEpochMs = nowEpochMs,
                     updatedAtEpochMs = nowEpochMs
                 )

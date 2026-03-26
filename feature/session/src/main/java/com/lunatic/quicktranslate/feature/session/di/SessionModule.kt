@@ -69,7 +69,7 @@ val sessionModule = module {
             persistStage = get()
         )
     }
-    factory<ProjectTranscodeTaskExecutor> { SessionProjectTranscodeTaskExecutor(get(), get(), get()) }
+    factory<ProjectTranscodeTaskExecutor> { SessionProjectTranscodeTaskExecutor(get(), get(), get(), get()) }
     factory { SessionTranscriptionCoordinator(get(), get()) }
     viewModelOf(::SessionViewModel)
 }

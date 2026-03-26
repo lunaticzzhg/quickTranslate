@@ -17,12 +17,17 @@
 - `ProjectPlaybackStateRepository` 播放状态仓库接口
 - `ProjectTranscodeTask` 转码任务领域实体
 - `ProjectTranscodeTaskStatus` 转码任务状态枚举
+- `ProjectTranscodeTaskStage` 转码任务执行阶段枚举
 - `ProjectTranscodeTaskType` 转码任务类型常量
 - `ProjectTranscodeTaskRepository` 转码任务仓库接口
 - `ProjectTranscodeQueueEngine` 转码队列引擎接口
 - `ProjectTranscodeTaskExecutor` 转码任务执行器接口
+- `PlatformLinkResolverRepository` 平台链接解析仓库接口
+- `PlatformLinkResolveResult` 平台链接解析结果模型
+- `PlatformLinkResolveFailureType` 平台链接解析失败分类
 - `CreateProjectUseCase`
 - `CreateProjectFromUrlUseCase`
+- `ResolvePlatformLinkUseCase`
 - `GetProjectByIdUseCase`
 - `ObserveRecentProjectsUseCase`
 - `DeleteProjectUseCase`

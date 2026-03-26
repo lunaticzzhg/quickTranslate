@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lunatic.quicktranslate.domain.project.model.Project
 import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTask
+import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTaskStage
 import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTaskStatus
 import com.lunatic.quicktranslate.domain.project.usecase.ObserveRecentProjectsUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.ObserveTranscodeDashboardTasksUseCase
@@ -97,9 +98,23 @@ class TranscodeTasksViewModel(
             mimeType = project?.mimeType ?: "application/octet-stream",
             durationMs = project?.durationMs ?: -1L,
             statusLabel = status.toStatusLabel(),
+            stageLabel = stage.toStageLabel(),
+            progressLabel = progress?.let { "$it%" },
             isFailed = status == ProjectTranscodeTaskStatus.FAILED,
             errorMessage = errorMessage
         )
+    }
+
+    private fun ProjectTranscodeTaskStage.toStageLabel(): String {
+        return when (this) {
+            ProjectTranscodeTaskStage.QUEUED -> "Queued"
+            ProjectTranscodeTaskStage.RESOLVING -> "Resolving"
+            ProjectTranscodeTaskStage.DOWNLOADING -> "Downloading"
+            ProjectTranscodeTaskStage.TRANSCRIBING -> "Transcribing"
+            ProjectTranscodeTaskStage.SUCCEEDED -> "Succeeded"
+            ProjectTranscodeTaskStage.FAILED -> "Failed"
+            ProjectTranscodeTaskStage.CANCELED -> "Canceled"
+        }
     }
 
     private fun ProjectTranscodeTaskStatus.toStatusLabel(): String {

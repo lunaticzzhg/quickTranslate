@@ -1,20 +1,30 @@
 package com.lunatic.quicktranslate.domain.project.usecase
 
 import com.lunatic.quicktranslate.domain.project.model.CreateProjectInput
+import com.lunatic.quicktranslate.domain.project.model.PlatformLinkResolveResult
 import com.lunatic.quicktranslate.domain.project.model.Project
 import java.net.URI
 
 class CreateProjectFromUrlUseCase(
+    private val resolvePlatformLinkUseCase: ResolvePlatformLinkUseCase,
     private val getProjectByMediaUriUseCase: GetProjectByMediaUriUseCase,
     private val createProjectUseCase: CreateProjectUseCase,
     private val enqueueProjectTranscodeTaskUseCase: EnqueueProjectTranscodeTaskUseCase
 ) {
     suspend operator fun invoke(sourceUrl: String): Project {
         val normalizedUrl = sourceUrl.trim()
-        getProjectByMediaUriUseCase(normalizedUrl)?.let { existing ->
+        val resolved = resolvePlatformLinkUseCase(normalizedUrl)
+        val resolvedMediaUrl = when (resolved) {
+            is PlatformLinkResolveResult.Success -> resolved.media.resolvedMediaUrl
+            is PlatformLinkResolveResult.Failure -> {
+                throw IllegalArgumentException(resolved.error.message)
+            }
+        }
+
+        getProjectByMediaUriUseCase(resolvedMediaUrl)?.let { existing ->
             enqueueProjectTranscodeTaskUseCase(
                 projectId = existing.id,
-                mediaUri = normalizedUrl
+                mediaUri = resolvedMediaUrl
             )
             return existing
         }
@@ -22,14 +32,14 @@ class CreateProjectFromUrlUseCase(
         val project = createProjectUseCase(
             CreateProjectInput(
                 displayName = normalizedUrl.defaultDisplayName(),
-                mediaUri = normalizedUrl,
+                mediaUri = resolvedMediaUrl,
                 mimeType = "application/octet-stream",
                 durationMs = -1L
             )
         )
         enqueueProjectTranscodeTaskUseCase(
             projectId = project.id,
-            mediaUri = normalizedUrl
+            mediaUri = resolvedMediaUrl
         )
         return project
     }
@@ -46,4 +56,3 @@ private fun String.defaultDisplayName(): String {
         "Imported media link"
     }
 }
-

@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTaskStatus
+import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTaskStage
 import com.lunatic.quicktranslate.domain.project.usecase.BumpProjectTranscodeTaskPriorityUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.EnqueueProjectTranscodeTaskUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.GetProjectByIdUseCase
@@ -317,7 +318,7 @@ class SessionViewModel(
                     ProjectTranscodeTaskStatus.RUNNING -> {
                         mutableState.value = mutableState.value.copy(
                             transcriptionStatus = TranscriptionStatus.PROCESSING,
-                            transcriptionProgress = null,
+                            transcriptionProgress = task.progress,
                             transcriptionError = null
                         )
                     }
@@ -337,7 +338,8 @@ class SessionViewModel(
                         mutableState.value = mutableState.value.copy(
                             transcriptionStatus = TranscriptionStatus.FAILED,
                             transcriptionProgress = null,
-                            transcriptionError = task.errorMessage ?: "Transcription failed. Please retry."
+                            transcriptionError = task.errorMessage
+                                ?: task.stage.toFailureMessage()
                         )
                     }
 
@@ -361,6 +363,15 @@ class SessionViewModel(
         val firstStart = subtitles.first().startMs.coerceAtLeast(0L)
         sessionPlayer.seekTo(firstStart)
         sessionPlayer.play()
+    }
+
+    private fun ProjectTranscodeTaskStage.toFailureMessage(): String {
+        return when (this) {
+            ProjectTranscodeTaskStage.RESOLVING -> "Failed while resolving media link."
+            ProjectTranscodeTaskStage.DOWNLOADING -> "Failed while downloading media."
+            ProjectTranscodeTaskStage.TRANSCRIBING -> "Failed while generating subtitles."
+            else -> "Transcription failed. Please retry."
+        }
     }
 
     override fun onCleared() {

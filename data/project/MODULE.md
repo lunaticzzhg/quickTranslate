@@ -11,6 +11,7 @@
 - `RoomProjectLoopConfigRepository`
 - `RoomProjectPlaybackStateRepository`
 - `RoomProjectTranscodeTaskRepository`
+- `DefaultPlatformLinkResolverRepository`（平台链接解析路由骨架）
 - `local/ProjectEntity`、`ProjectDao`、`QuickTranslateDatabase`
 - `local/ProjectSubtitleEntity`、`ProjectSubtitleDao`
 - `local/ProjectLoopConfigEntity`、`ProjectLoopConfigDao`
@@ -25,6 +26,7 @@
 - 支持按项目持久化字幕列表并替换更新
 - 支持按项目持久化循环配置（选区起止 + 次数选项）
 - 支持转码任务队列持久化（入队、提权、领取、状态回写、运行中恢复）
+- 支持转码任务阶段与进度回写（resolving/downloading/transcribing）
 - 支持首页任务看板查询（执行中/排队中/失败）
 
 ## 3. 对外暴露能力

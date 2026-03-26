@@ -21,6 +21,8 @@ data class ProjectTranscodeTaskEntity(
     val basePriority: Int,
     val boostSeq: Long,
     val retryCount: Int,
+    val stage: String,
+    val progress: Int?,
     val errorMessage: String?,
     val createdAtEpochMs: Long,
     val updatedAtEpochMs: Long,

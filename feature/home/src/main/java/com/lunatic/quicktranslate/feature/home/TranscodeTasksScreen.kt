@@ -52,6 +52,18 @@ fun TranscodeTasksScreen(
                             modifier = Modifier.padding(top = 4.dp),
                             style = MaterialTheme.typography.bodySmall
                         )
+                        Text(
+                            text = "Stage: ${task.stageLabel}",
+                            modifier = Modifier.padding(top = 4.dp),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        if (!task.progressLabel.isNullOrBlank()) {
+                            Text(
+                                text = "Progress: ${task.progressLabel}",
+                                modifier = Modifier.padding(top = 4.dp),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
                         if (!task.errorMessage.isNullOrBlank()) {
                             Text(
                                 text = "Reason: ${task.errorMessage}",

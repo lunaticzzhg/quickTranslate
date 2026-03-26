@@ -3,6 +3,7 @@ package com.lunatic.quicktranslate.data.project
 import com.lunatic.quicktranslate.data.project.local.ProjectTranscodeTaskDao
 import com.lunatic.quicktranslate.data.project.local.ProjectTranscodeTaskEntity
 import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTask
+import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTaskStage
 import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTaskStatus
 import com.lunatic.quicktranslate.domain.project.repository.ProjectTranscodeTaskRepository
 import kotlinx.coroutines.flow.Flow
@@ -48,6 +49,8 @@ class RoomProjectTranscodeTaskRepository(
                 basePriority = 0,
                 boostSeq = nextBoost,
                 retryCount = 0,
+                stage = ProjectTranscodeTaskStage.QUEUED.name,
+                progress = null,
                 errorMessage = null,
                 createdAtEpochMs = now,
                 updatedAtEpochMs = now,
@@ -88,6 +91,19 @@ class RoomProjectTranscodeTaskRepository(
             taskId = taskId,
             errorMessage = message,
             finishedAtEpochMs = finishedAtEpochMs
+        )
+    }
+
+    override suspend fun updateRunningTaskProgress(
+        taskId: Long,
+        stage: ProjectTranscodeTaskStage,
+        progress: Int?
+    ) {
+        transcodeTaskDao.updateRunningTaskProgress(
+            taskId = taskId,
+            stage = stage.name,
+            progress = progress?.coerceIn(0, 100),
+            updatedAtEpochMs = System.currentTimeMillis()
         )
     }
 
