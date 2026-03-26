@@ -14,6 +14,9 @@ class SessionYtDlpMediaDownloader(
     private val ytDlpCookiesPath: String,
     private val ytDlpExtractorArgs: String
 ) {
+    @Volatile
+    private var runtimeInitialized: Boolean = false
+
     private val internalCookiesFile: File by lazy {
         File(appContext.filesDir, INTERNAL_YOUTUBE_COOKIES_RELATIVE_PATH)
     }
@@ -162,19 +165,28 @@ class SessionYtDlpMediaDownloader(
     }
 
     private fun initEmbeddedRuntime() {
-        try {
-            FFmpeg.getInstance().init(appContext)
-            YoutubeDL.init(appContext)
-        } catch (error: YoutubeDLException) {
-            throw IOException(
-                "Failed to initialize embedded yt-dlp runtime. Cause: ${error.message}",
-                error
-            )
-        } catch (error: Exception) {
-            throw IOException(
-                "Failed to initialize embedded ffmpeg runtime. Cause: ${error.message}",
-                error
-            )
+        if (runtimeInitialized) {
+            return
+        }
+        synchronized(this) {
+            if (runtimeInitialized) {
+                return
+            }
+            try {
+                FFmpeg.getInstance().init(appContext)
+                YoutubeDL.init(appContext)
+                runtimeInitialized = true
+            } catch (error: YoutubeDLException) {
+                throw IOException(
+                    "Failed to initialize embedded yt-dlp runtime. Cause: ${error.message}",
+                    error
+                )
+            } catch (error: Exception) {
+                throw IOException(
+                    "Failed to initialize embedded ffmpeg runtime. Cause: ${error.message}",
+                    error
+                )
+            }
         }
     }
 

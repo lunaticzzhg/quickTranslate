@@ -80,6 +80,7 @@ class WhisperCliTranscriptionService(
                 val logReadDone = AtomicBoolean(false)
                 val partialFromStdout = AtomicReference<List<TranscriptionSegment>>(emptyList())
                 val logsBuilder = StringBuilder()
+                val emitPartial = onPartialResult != null
 
                 val readerJob = launch(Dispatchers.IO) {
                     process.inputStream.bufferedReader().use { reader ->
@@ -87,10 +88,12 @@ class WhisperCliTranscriptionService(
                             val line = reader.readLine() ?: break
                             logsBuilder.appendLine(line)
                             parseProgress(line)?.let { onProgress?.invoke(it) }
-                            parseSegmentLine(line)?.let { segment ->
-                                val updated = partialFromStdout.get() + segment
-                                partialFromStdout.set(updated)
-                                onPartialResult?.invoke(updated)
+                            if (emitPartial) {
+                                parseSegmentLine(line)?.let { segment ->
+                                    val updated = partialFromStdout.get() + segment
+                                    partialFromStdout.set(updated)
+                                    onPartialResult?.invoke(updated)
+                                }
                             }
                         }
                     }
@@ -102,17 +105,19 @@ class WhisperCliTranscriptionService(
                 var lastSrtModified = -1L
                 try {
                     while (isActive && process.isAlive) {
-                        val resolved = resolveOutputSrt(outputBase, outputSrt)
-                        val shouldParse = resolved.exists() &&
-                            (resolved.length() != lastSrtSize || resolved.lastModified() != lastSrtModified)
-                        if (shouldParse) {
-                            lastSrtSize = resolved.length()
-                            lastSrtModified = resolved.lastModified()
-                            val partial = SrtParser.parse(resolved)
-                            val signature = buildSegmentsSignature(partial)
-                            if (partial.isNotEmpty() && signature != emittedSignature) {
-                                emittedSignature = signature
-                                onPartialResult?.invoke(partial)
+                        if (emitPartial) {
+                            val resolved = resolveOutputSrt(outputBase, outputSrt)
+                            val shouldParse = resolved.exists() &&
+                                (resolved.length() != lastSrtSize || resolved.lastModified() != lastSrtModified)
+                            if (shouldParse) {
+                                lastSrtSize = resolved.length()
+                                lastSrtModified = resolved.lastModified()
+                                val partial = SrtParser.parse(resolved)
+                                val signature = buildSegmentsSignature(partial)
+                                if (partial.isNotEmpty() && signature != emittedSignature) {
+                                    emittedSignature = signature
+                                    onPartialResult?.invoke(partial)
+                                }
                             }
                         }
                         delay(250L)

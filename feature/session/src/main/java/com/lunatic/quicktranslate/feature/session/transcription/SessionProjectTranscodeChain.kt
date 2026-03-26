@@ -4,9 +4,6 @@ import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTask
 import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTaskStage
 import com.lunatic.quicktranslate.domain.project.repository.ProjectTranscodeTaskRepository
 import com.lunatic.quicktranslate.domain.project.usecase.UpdateProjectMediaSourceUseCase
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 class SessionProjectTranscodeChain(
     private val steps: List<SessionProjectTranscodeStep>
@@ -45,18 +42,6 @@ class SessionProjectTranscodeContext(
         )
     }
 
-    fun emitProgressAsync(stage: ProjectTranscodeTaskStage, progress: Int) {
-        CoroutineScope(Dispatchers.IO).launch {
-            runCatching {
-                transcodeTaskRepository.updateRunningTaskProgress(
-                    taskId = task.id,
-                    stage = stage,
-                    progress = toOverallProgress(stage, progress)
-                )
-            }
-        }
-    }
-
     private fun toOverallProgress(stage: ProjectTranscodeTaskStage, stageProgress: Int?): Int? {
         val bounded = stageProgress?.coerceIn(0, 100)
         return when (stage) {
@@ -93,15 +78,13 @@ class SessionEnsureLocalMediaStep(
     override val order: Int = 200
 
     override suspend fun execute(context: SessionProjectTranscodeContext) {
+        context.updateProgress(
+            stage = ProjectTranscodeTaskStage.DOWNLOADING,
+            progress = 0
+        )
         context.localMedia = downloadStage.ensureLocalMedia(
             projectId = context.task.projectId,
-            mediaUri = context.task.mediaUri,
-            onProgress = { progress ->
-                context.emitProgressAsync(
-                    stage = ProjectTranscodeTaskStage.DOWNLOADING,
-                    progress = progress
-                )
-            }
+            mediaUri = context.task.mediaUri
         )
     }
 }
@@ -144,12 +127,7 @@ class SessionTranscribeStep(
         pipeline.run(
             projectId = context.task.projectId,
             mediaUri = localMedia.localPath,
-            onProgress = { progress ->
-                context.emitProgressAsync(
-                    stage = ProjectTranscodeTaskStage.TRANSCRIBING,
-                    progress = progress
-                )
-            }
+            onProgress = null
         ).getOrThrow()
     }
 }

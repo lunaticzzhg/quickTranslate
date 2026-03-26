@@ -9,6 +9,7 @@ import android.media.MediaFormat.KEY_CHANNEL_COUNT
 import android.media.MediaFormat.KEY_MIME
 import android.media.MediaFormat.KEY_PCM_ENCODING
 import android.media.MediaFormat.KEY_SAMPLE_RATE
+import android.media.MediaMuxer
 import android.net.Uri
 import java.io.File
 import java.io.FileOutputStream
@@ -67,6 +68,18 @@ class SessionMediaPrepareStage(
         val uri = Uri.parse(mediaUri)
         val scheme = uri.scheme.orEmpty()
         val mimeType = resolveMimeType(uri)
+        val needsAudioExtract = shouldExtractCompressedAudio(uri = uri, mimeType = mimeType)
+        if (!forceTranscodeToWav && needsAudioExtract) {
+            val extracted = runCatching { extractAudioTrackToM4a(uri = uri, fallbackPath = mediaUri) }
+                .getOrNull()
+            if (extracted != null) {
+                return PreparedTranscriptionMedia(
+                    path = extracted.absolutePath,
+                    cleanup = { extracted.delete() },
+                    transcodedToWav = false
+                )
+            }
+        }
         if (forceTranscodeToWav || shouldTranscodeToWav(uri = uri, mimeType = mimeType)) {
             val wavFile = decodeAudioTrackToWav(uri = uri, fallbackPath = mediaUri)
             return PreparedTranscriptionMedia(
@@ -116,7 +129,7 @@ class SessionMediaPrepareStage(
             return false
         }
         if (normalizedMime.startsWith("video/")) {
-            return true
+            return false
         }
         val extension = path.substringAfterLast('.', "")
         if (extension in AUDIO_EXTENSIONS) {
@@ -126,6 +139,64 @@ class SessionMediaPrepareStage(
             return true
         }
         return normalizedMime.isBlank()
+    }
+
+    private fun shouldExtractCompressedAudio(uri: Uri, mimeType: String?): Boolean {
+        val path = uri.path.orEmpty().lowercase()
+        val normalizedMime = mimeType?.lowercase().orEmpty()
+        if (normalizedMime.startsWith("video/")) {
+            return true
+        }
+        val extension = path.substringAfterLast('.', "")
+        return extension in VIDEO_EXTENSIONS
+    }
+
+    private fun extractAudioTrackToM4a(uri: Uri, fallbackPath: String): File {
+        val extractor = MediaExtractor()
+        try {
+            if (uri.scheme.equals("content", ignoreCase = true)) {
+                extractor.setDataSource(appContext, uri, null)
+            } else if (uri.scheme.equals("file", ignoreCase = true)) {
+                extractor.setDataSource(uri.path.orEmpty())
+            } else {
+                extractor.setDataSource(fallbackPath)
+            }
+            val trackIndex = (0 until extractor.trackCount).firstOrNull { idx ->
+                val format = extractor.getTrackFormat(idx)
+                format.getString(KEY_MIME)?.startsWith("audio/") == true
+            } ?: error("No audio track found for extraction.")
+            extractor.selectTrack(trackIndex)
+            val inputFormat = extractor.getTrackFormat(trackIndex)
+            val outputFile = File(appContext.cacheDir, "qt_transcribe_${UUID.randomUUID()}.m4a")
+            val muxer = MediaMuxer(outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            try {
+                val outputTrackIndex = muxer.addTrack(inputFormat)
+                muxer.start()
+                val bufferInfo = MediaCodec.BufferInfo()
+                val sampleBuffer = ByteBuffer.allocate(1 * 1024 * 1024)
+                while (true) {
+                    bufferInfo.offset = 0
+                    bufferInfo.size = extractor.readSampleData(sampleBuffer, 0)
+                    if (bufferInfo.size < 0) {
+                        bufferInfo.size = 0
+                        break
+                    }
+                    bufferInfo.presentationTimeUs = extractor.sampleTime
+                    bufferInfo.flags = extractor.sampleFlags
+                    muxer.writeSampleData(outputTrackIndex, sampleBuffer, bufferInfo)
+                    extractor.advance()
+                }
+            } finally {
+                runCatching { muxer.stop() }
+                runCatching { muxer.release() }
+            }
+            if (!outputFile.exists() || outputFile.length() <= 0L) {
+                error("Audio extraction generated empty m4a.")
+            }
+            return outputFile
+        } finally {
+            extractor.release()
+        }
     }
 
     private fun decodeAudioTrackToWav(uri: Uri, fallbackPath: String): File {
