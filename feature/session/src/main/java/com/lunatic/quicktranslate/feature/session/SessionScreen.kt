@@ -1,5 +1,7 @@
 package com.lunatic.quicktranslate.feature.session
 
+import android.widget.Toast
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +36,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -48,6 +53,8 @@ fun SessionScreen(
     player: Player,
     onIntent: (SessionIntent) -> Unit
 ) {
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
     val subtitleListState = rememberLazyListState()
     var isLoopPanelOpen by remember { mutableStateOf(false) }
 
@@ -211,7 +218,15 @@ fun SessionScreen(
                         EmptyTranscriptionGuidanceCard(
                             state = state,
                             onRetry = { onIntent(SessionIntent.RetryTranscriptionClicked) },
-                            onChooseAnother = { onIntent(SessionIntent.BackClicked) }
+                            onChooseAnother = { onIntent(SessionIntent.BackClicked) },
+                            onCopyError = { message ->
+                                clipboardManager.setText(AnnotatedString(message))
+                                Toast.makeText(
+                                    context,
+                                    "Error copied",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
                         )
                     } else {
                         Card(
@@ -357,8 +372,11 @@ fun SessionScreen(
 private fun EmptyTranscriptionGuidanceCard(
     state: SessionState,
     onRetry: () -> Unit,
-    onChooseAnother: () -> Unit
+    onChooseAnother: () -> Unit,
+    onCopyError: (String) -> Unit
 ) {
+    val errorText = state.transcriptionError
+        ?: "This is usually caused by low speech clarity, strong background noise, or non-English audio with the current model."
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -375,11 +393,12 @@ private fun EmptyTranscriptionGuidanceCard(
                 text = "Transcription finished, but no subtitles were generated.",
                 style = MaterialTheme.typography.titleSmall
             )
-            Text(
-                text = state.transcriptionError
-                    ?: "This is usually caused by low speech clarity, strong background noise, or non-English audio with the current model.",
-                style = MaterialTheme.typography.bodySmall
-            )
+            SelectionContainer {
+                Text(
+                    text = errorText,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
             Text(
                 text = "Suggestions:",
                 style = MaterialTheme.typography.labelLarge
@@ -399,6 +418,9 @@ private fun EmptyTranscriptionGuidanceCard(
                 }
                 Button(onClick = onChooseAnother) {
                     Text(text = "Choose Another")
+                }
+                Button(onClick = { onCopyError(errorText) }) {
+                    Text(text = "Copy Error")
                 }
             }
         }

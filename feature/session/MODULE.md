@@ -30,6 +30,10 @@
 - 学习页重进时优先恢复已落库字幕，避免重复触发 mock 转写
 - 学习页通过“转码任务队列”触发转写（入队+提权+状态观察），而非页面内直接长任务执行
 - 队列任务执行时，对 `http/https` 媒体先下载到本地项目目录，再执行转写
+- YouTube/B站/抖音下载统一走 `youtubedl-android` 内置 runtime（不走外置 `yt-dlp`）
+- 支持 `quicktranslate.ytdlp.cookies.path` 注入 cookies.txt（用于 YouTube bot-check / 登录态限制）
+- 支持 `quicktranslate.ytdlp.extractor.args` 覆盖 YouTube extractor 参数（可用于 PO Token/visitor_data）
+- 支持读取应用私有 `files/yt/youtube_cookies.txt`（Netscape cookies 文件，由 app 内登录页生成）
 - 学习页重试转写时优先读取项目最新 `mediaUri` 入队（下载后走本地路径）
 - 学习页处理中的转写状态支持读取任务进度（`transcriptionProgress`）
 - 循环配置持久化（选区与循环次数）并在重进时恢复

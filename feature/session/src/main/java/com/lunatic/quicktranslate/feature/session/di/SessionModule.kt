@@ -60,7 +60,16 @@ val sessionModule = module {
     factory { SessionLoopController(get(), get()) }
     factory { SessionPlaybackCoordinator(get(), get()) }
     single { OkHttpClient.Builder().build() }
-    factory { SessionRemoteMediaDownloadStage(androidContext(), get()) }
+    factory {
+        SessionRemoteMediaDownloadStage(
+            appContext = androidContext(),
+            okHttpClient = get(),
+            resolvePlatformLinkUseCase = get(),
+            ytDlpPath = BuildConfig.YTDLP_PATH,
+            ytDlpCookiesPath = BuildConfig.YTDLP_COOKIES_PATH,
+            ytDlpExtractorArgs = BuildConfig.YTDLP_EXTRACTOR_ARGS
+        )
+    }
     factory { SessionMediaPrepareStage(androidContext()) }
     factory { SessionTranscriptionExecuteStage(get()) }
     factory { SessionSubtitlePersistStage(get(), get()) }

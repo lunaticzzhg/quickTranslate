@@ -31,6 +31,14 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".YoutubeLoginActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.lunatic.quicktranslate.action.YOUTUBE_LOGIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
     </application>
 
 </manifest>

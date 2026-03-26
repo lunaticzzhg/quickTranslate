@@ -11,6 +11,7 @@ import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URL
+import java.net.URLDecoder
 import java.util.zip.GZIPInputStream
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
@@ -58,12 +59,26 @@ class DefaultPlatformLinkResolverRepository : PlatformLinkResolverRepository {
             }
 
             if (host in DOUYIN_HOSTS) {
-                return@withContext PlatformLinkResolveResult.Failure(
-                    PlatformLinkResolveFailure(
-                        type = PlatformLinkResolveFailureType.EXTRACT_FAILED,
-                        message = "Douyin resolver is not implemented yet."
+                val item = PlatformLinkResolvedItem(
+                    id = "douyin_ytdlp",
+                    label = "Douyin (yt-dlp)",
+                    resolvedMediaUrl = normalized,
+                    mimeType = null,
+                    estimatedBytes = null
+                )
+                return@withContext PlatformLinkResolveResult.Success(
+                    PlatformLinkResolvedMedia(
+                        requestUrl = normalized,
+                        suggestedProjectName = normalized.defaultDisplayName(),
+                        items = listOf(item),
+                        sourceHost = host,
+                        isDirectMedia = false
                     )
                 )
+            }
+
+            if (host in YOUTUBE_HOSTS) {
+                return@withContext resolveYouTube(normalized)
             }
 
             return@withContext PlatformLinkResolveResult.Failure(
@@ -149,6 +164,108 @@ class DefaultPlatformLinkResolverRepository : PlatformLinkResolverRepository {
                 )
             )
         }
+        return PlatformLinkResolveResult.Success(
+            PlatformLinkResolvedMedia(
+                requestUrl = sourceUrl,
+                suggestedProjectName = title,
+                items = items,
+                sourceHost = expandedHost,
+                isDirectMedia = false
+            )
+        )
+    }
+
+    private fun resolveYouTube(sourceUrl: String): PlatformLinkResolveResult {
+        val expandedUrl = resolveFinalUrl(sourceUrl)
+        val expandedHost = runCatching { URI(expandedUrl).host?.lowercase().orEmpty() }
+            .getOrDefault("")
+        if (expandedHost !in YOUTUBE_HOSTS) {
+            return PlatformLinkResolveResult.Failure(
+                PlatformLinkResolveFailure(
+                    type = PlatformLinkResolveFailureType.UNSUPPORTED_SITE,
+                    message = "Short link does not resolve to a supported youtube host."
+                )
+            )
+        }
+        val videoId = extractYouTubeVideoId(expandedUrl)
+            ?: return PlatformLinkResolveResult.Failure(
+                PlatformLinkResolveFailure(
+                    type = PlatformLinkResolveFailureType.EXTRACT_FAILED,
+                    message = "Unable to extract YouTube video id from link."
+                )
+            )
+        val watchUrl = "https://www.youtube.com/watch?v=$videoId"
+        val html = runCatching {
+            httpGetText(
+                watchUrl,
+                headers = mapOf(
+                    "Referer" to "https://www.youtube.com/",
+                    "Origin" to "https://www.youtube.com",
+                    "User-Agent" to DEFAULT_USER_AGENT,
+                    "Accept-Language" to "en-US,en;q=0.9"
+                )
+            )
+        }.getOrElse { error ->
+            return PlatformLinkResolveResult.Failure(
+                PlatformLinkResolveFailure(
+                    type = PlatformLinkResolveFailureType.EXTRACT_FAILED,
+                    message = error.message ?: "Failed to fetch youtube page."
+                )
+            )
+        }
+        val playerJson = extractYouTubePlayerResponseJson(html)
+            ?: return PlatformLinkResolveResult.Failure(
+                PlatformLinkResolveFailure(
+                    type = PlatformLinkResolveFailureType.EXTRACT_FAILED,
+                    message = "YouTube player response was not found on page."
+                )
+            )
+        val playerResponse = runCatching { JSONObject(playerJson) }.getOrNull()
+            ?: return PlatformLinkResolveResult.Failure(
+                PlatformLinkResolveFailure(
+                    type = PlatformLinkResolveFailureType.EXTRACT_FAILED,
+                    message = "YouTube player response is invalid JSON."
+                )
+            )
+        val playabilityStatus = playerResponse.optJSONObject("playabilityStatus")
+        val status = playabilityStatus?.optString("status").orEmpty()
+        if (status.isNotBlank() && status != "OK") {
+            val reason = playabilityStatus?.optString("reason").orEmpty()
+            val lowerReason = reason.lowercase()
+            val failureType = when {
+                lowerReason.contains("sign in") ||
+                    lowerReason.contains("confirm your age") -> PlatformLinkResolveFailureType.LOGIN_REQUIRED
+                lowerReason.contains("not available in your country") ||
+                    lowerReason.contains("not available in your region") -> PlatformLinkResolveFailureType.REGION_RESTRICTED
+                lowerReason.contains("copyright") ||
+                    lowerReason.contains("drm") -> PlatformLinkResolveFailureType.DRM_PROTECTED
+                else -> PlatformLinkResolveFailureType.EXTRACT_FAILED
+            }
+            return PlatformLinkResolveResult.Failure(
+                PlatformLinkResolveFailure(
+                    type = failureType,
+                    message = reason.ifBlank { "YouTube playability status: $status" }
+                )
+            )
+        }
+        val items = parseYouTubeStreamingItems(playerResponse)
+        if (items.isEmpty()) {
+            return PlatformLinkResolveResult.Failure(
+                PlatformLinkResolveFailure(
+                    type = PlatformLinkResolveFailureType.EXTRACT_FAILED,
+                    message = "No downloadable media candidates were extracted from youtube page."
+                )
+            )
+        }
+        val title = playerResponse.optJSONObject("videoDetails")
+            ?.optString("title")
+            ?.trim()
+            ?.ifBlank { null }
+            ?: extractPageTitle(html)
+                ?.removeSuffix("- YouTube")
+                ?.trim()
+                ?.ifBlank { null }
+            ?: watchUrl.defaultDisplayName()
         return PlatformLinkResolveResult.Success(
             PlatformLinkResolvedMedia(
                 requestUrl = sourceUrl,
@@ -308,6 +425,212 @@ class DefaultPlatformLinkResolverRepository : PlatformLinkResolverRepository {
         }
     }
 
+    private fun parseYouTubeStreamingItems(playerResponse: JSONObject): List<PlatformLinkResolvedItem> {
+        val streamingData = playerResponse.optJSONObject("streamingData") ?: return emptyList()
+        val adaptiveFormats = streamingData.optJSONArray("adaptiveFormats")
+        val formats = streamingData.optJSONArray("formats")
+        val collector = mutableListOf<PlatformLinkResolvedItem>()
+        val addedUrls = linkedSetOf<String>()
+        parseYouTubeFormatArray(
+            array = adaptiveFormats,
+            collector = collector,
+            addedUrls = addedUrls,
+            audioLimit = 6,
+            videoLimit = 2
+        )
+        parseYouTubeFormatArray(
+            array = formats,
+            collector = collector,
+            addedUrls = addedUrls,
+            audioLimit = 2,
+            videoLimit = 1
+        )
+        return collector
+    }
+
+    private fun parseYouTubeFormatArray(
+        array: JSONArray?,
+        collector: MutableList<PlatformLinkResolvedItem>,
+        addedUrls: MutableSet<String>,
+        audioLimit: Int,
+        videoLimit: Int
+    ) {
+        if (array == null) return
+        var audioCount = 0
+        var videoCount = 0
+        repeat(array.length()) { index ->
+            val item = array.optJSONObject(index) ?: return@repeat
+            val resolvedUrl = resolveYouTubeFormatUrl(item)
+            if (resolvedUrl.isBlank() || !addedUrls.add(resolvedUrl)) {
+                return@repeat
+            }
+            val mimeType = item.optString("mimeType")
+                .substringBefore(';')
+                .trim()
+                .ifBlank { guessMimeType(resolvedUrl) }
+            val bandwidth = item.optLong("bitrate", -1L)
+            val estimatedBytes = item.optString("contentLength")
+                .toLongOrNull()
+                ?: estimateBytesFromBitrate(
+                    bitrate = bandwidth,
+                    durationMs = item.optString("approxDurationMs").toLongOrNull()
+                )
+            if (mimeType?.startsWith("audio/") == true) {
+                if (audioCount >= audioLimit) return@repeat
+                audioCount += 1
+                val kbps = if (bandwidth > 0) (bandwidth / 1000.0).roundToInt() else null
+                collector += PlatformLinkResolvedItem(
+                    id = "yt_audio_${item.optInt("itag", index)}",
+                    label = if (kbps != null) "Audio ${kbps}kbps" else "Audio ${audioCount}",
+                    resolvedMediaUrl = resolvedUrl,
+                    mimeType = mimeType,
+                    estimatedBytes = estimatedBytes
+                )
+            } else if (mimeType?.startsWith("video/") == true) {
+                if (videoCount >= videoLimit) return@repeat
+                videoCount += 1
+                val quality = item.optString("qualityLabel").ifBlank { "Video ${videoCount}" }
+                collector += PlatformLinkResolvedItem(
+                    id = "yt_video_${item.optInt("itag", index)}",
+                    label = quality,
+                    resolvedMediaUrl = resolvedUrl,
+                    mimeType = mimeType,
+                    estimatedBytes = estimatedBytes
+                )
+            }
+        }
+    }
+
+    private fun resolveYouTubeFormatUrl(item: JSONObject): String {
+        val directUrl = item.optString("url").trim()
+        if (directUrl.isNotBlank()) {
+            return directUrl
+        }
+        val cipher = item.optString("signatureCipher")
+            .ifBlank { item.optString("cipher") }
+            .trim()
+        if (cipher.isBlank()) {
+            return ""
+        }
+        val params = parseFormEncodedParams(cipher)
+        val url = params["url"].orEmpty()
+        if (url.isBlank()) {
+            return ""
+        }
+        if (!params["s"].isNullOrBlank()) {
+            return ""
+        }
+        val signature = params["sig"] ?: params["signature"]
+        val sp = params["sp"].orEmpty()
+        if (signature.isNullOrBlank() || sp.isBlank()) {
+            return url
+        }
+        val separator = if (url.contains('?')) '&' else '?'
+        return "$url$separator$sp=$signature"
+    }
+
+    private fun parseFormEncodedParams(raw: String): Map<String, String> {
+        return raw.split('&')
+            .mapNotNull { token ->
+                val idx = token.indexOf('=')
+                if (idx <= 0) return@mapNotNull null
+                val key = token.substring(0, idx)
+                val value = token.substring(idx + 1)
+                key to URLDecoder.decode(value, Charsets.UTF_8.name())
+            }
+            .toMap()
+    }
+
+    private fun estimateBytesFromBitrate(bitrate: Long, durationMs: Long?): Long? {
+        if (bitrate <= 0 || durationMs == null || durationMs <= 0L) {
+            return null
+        }
+        return (bitrate * durationMs) / 8_000L
+    }
+
+    private fun extractYouTubeVideoId(url: String): String? {
+        val parsed = runCatching { URI(url) }.getOrNull() ?: return null
+        val host = parsed.host?.lowercase().orEmpty()
+        if (host == "youtu.be") {
+            val pathId = parsed.path.orEmpty().trim('/').substringBefore('/')
+            return pathId.ifBlank { null }
+        }
+        if (host.endsWith("youtube.com")) {
+            val path = parsed.path.orEmpty()
+            if (path == "/watch") {
+                val queryParams = parseUrlQueryParams(parsed.rawQuery.orEmpty())
+                return queryParams["v"]?.trim()?.ifBlank { null }
+            }
+            if (path.startsWith("/shorts/")) {
+                return path.removePrefix("/shorts/").substringBefore('/').ifBlank { null }
+            }
+            if (path.startsWith("/live/")) {
+                return path.removePrefix("/live/").substringBefore('/').ifBlank { null }
+            }
+            if (path.startsWith("/embed/")) {
+                return path.removePrefix("/embed/").substringBefore('/').ifBlank { null }
+            }
+        }
+        return null
+    }
+
+    private fun parseUrlQueryParams(rawQuery: String): Map<String, String> {
+        if (rawQuery.isBlank()) {
+            return emptyMap()
+        }
+        return rawQuery.split('&')
+            .mapNotNull { token ->
+                val idx = token.indexOf('=')
+                if (idx <= 0) return@mapNotNull null
+                val key = URLDecoder.decode(token.substring(0, idx), Charsets.UTF_8.name())
+                val value = URLDecoder.decode(token.substring(idx + 1), Charsets.UTF_8.name())
+                key to value
+            }
+            .toMap()
+    }
+
+    private fun extractYouTubePlayerResponseJson(html: String): String? {
+        return extractBalancedJsonAfterMarker(html, "ytInitialPlayerResponse = ")
+            ?: extractBalancedJsonAfterMarker(html, "var ytInitialPlayerResponse = ")
+    }
+
+    private fun extractBalancedJsonAfterMarker(html: String, marker: String): String? {
+        val startIndex = html.indexOf(marker)
+        if (startIndex < 0) return null
+        val jsonStart = html.indexOf('{', startIndex + marker.length)
+        if (jsonStart < 0) return null
+        var depth = 0
+        var inString = false
+        var escape = false
+        for (index in jsonStart until html.length) {
+            val ch = html[index]
+            if (escape) {
+                escape = false
+                continue
+            }
+            if (ch == '\\') {
+                escape = true
+                continue
+            }
+            if (ch == '"') {
+                inString = !inString
+                continue
+            }
+            if (inString) {
+                continue
+            }
+            if (ch == '{') {
+                depth += 1
+            } else if (ch == '}') {
+                depth -= 1
+                if (depth == 0) {
+                    return html.substring(jsonStart, index + 1)
+                }
+            }
+        }
+        return null
+    }
+
     companion object {
         private val DIRECT_MEDIA_SUFFIXES = listOf(
             ".mp3",
@@ -335,6 +658,14 @@ class DefaultPlatformLinkResolverRepository : PlatformLinkResolverRepository {
             "www.douyin.com",
             "v.douyin.com",
             "www.iesdouyin.com"
+        )
+
+        private val YOUTUBE_HOSTS = setOf(
+            "www.youtube.com",
+            "m.youtube.com",
+            "youtube.com",
+            "music.youtube.com",
+            "youtu.be"
         )
 
         private const val DEFAULT_USER_AGENT =

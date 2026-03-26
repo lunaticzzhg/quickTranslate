@@ -31,6 +31,10 @@
 
 目标：完善错误提示、日志、重试与清理策略，覆盖常见失败场景，避免卡死。
 
+### L6：YouTube 下载运行时稳定化（youtubedl-android）
+
+目标：采用 `youtubedl-android` 内置 runtime，稳定支持 YouTube 下载链路，并保留外部路径兜底。
+
 ## 3. 任务拆解（按执行顺序）
 
 ### T1：新增“链接导入”UI 与路由
@@ -145,3 +149,28 @@
 - 验收：
   - 覆盖 `ONLINE_MEDIA_TRANSCODE_PRD.md` 的 V1/V2 验收标准，不出现“RUNNING 永久卡死”
 
+### T12：yt-dlp Android 构建脚本（P1）
+
+- 范围：
+  - 新增 `tools/build_embedded_ytdlp.sh`
+  - 产物输出到 `jniLibs` + assets 双路径
+  - 补充版本与依赖说明
+- 验收：
+  - 构建脚本执行后，产物路径完整且可用于 APK 打包
+
+### T13：运行时执行链路切换（P2）
+
+- 范围：
+  - YouTube 下载默认走 `youtubedl-android`，可选 `quicktranslate.ytdlp.path` 外部兜底
+  - 保持 YouTube 下载仅走 yt-dlp 方案，不再静默回退直链
+  - 失败信息完整透出（可复制）
+- 验收：
+  - YouTube 下载失败时可看到明确原因；成功时不再落到 403 直链错误
+
+### T14：自检与诊断入口（P3）
+
+- 范围：
+  - 启动自检 `yt-dlp --version`
+  - 新增诊断信息展示与复制入口
+- 验收：
+  - 用户可在 UI 获取当前 yt-dlp 版本/路径并复制用于排查

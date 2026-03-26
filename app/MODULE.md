@@ -15,10 +15,14 @@
   - 启动 Koin
 - `MainActivity`
   - 应用主入口 Activity
+- `YoutubeLoginActivity`
+  - 应用内 YouTube/Google 登录并导出 Cookie Header 到应用私有目录
 - `di/AppModule.kt`
   - 应用级依赖注入装配
 - `queue/AppProjectTranscodeQueueEngine`
   - 基于协程生产者-消费者模型的应用级转码队列引擎
+- `src/main/whisper-assets`
+  - 内置 whisper 模型/可执行文件与可选内置 `yt-dlp` 资源
 
 ## 3. 当前实现状态
 

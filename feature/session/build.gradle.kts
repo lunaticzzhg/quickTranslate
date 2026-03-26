@@ -63,6 +63,33 @@ android {
                 .orElse("0")
                 .get()
         )
+        buildConfigField(
+            "String",
+            "YTDLP_PATH",
+            quoteForBuildConfig(
+                providers.gradleProperty("quicktranslate.ytdlp.path")
+                    .orElse("")
+                    .get()
+            )
+        )
+        buildConfigField(
+            "String",
+            "YTDLP_COOKIES_PATH",
+            quoteForBuildConfig(
+                providers.gradleProperty("quicktranslate.ytdlp.cookies.path")
+                    .orElse("")
+                    .get()
+            )
+        )
+        buildConfigField(
+            "String",
+            "YTDLP_EXTRACTOR_ARGS",
+            quoteForBuildConfig(
+                providers.gradleProperty("quicktranslate.ytdlp.extractor.args")
+                    .orElse("youtube:player_client=tv,web_safari")
+                    .get()
+            )
+        )
     }
 
     compileOptions {
@@ -91,6 +118,8 @@ dependencies {
     implementation(libs.androidx.media3.common)
     implementation(libs.androidx.media3.ui)
     implementation(libs.okhttp)
+    implementation(libs.youtubedl.android.library)
+    implementation(libs.youtubedl.android.ffmpeg)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.koin.androidx.compose)
 }

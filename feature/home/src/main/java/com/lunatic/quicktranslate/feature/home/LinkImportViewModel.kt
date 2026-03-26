@@ -32,9 +32,14 @@ class LinkImportViewModel(
                             )
                             return@onSuccess
                         }
+                        val projectMediaUrl = if (result.media.isDirectMedia) {
+                            candidate.resolvedMediaUrl
+                        } else {
+                            url.trim()
+                        }
                         createProjectFromResolvedLinkUseCase(
                             sourceUrl = url.trim(),
-                            resolvedMediaUrl = candidate.resolvedMediaUrl,
+                            resolvedMediaUrl = projectMediaUrl,
                             displayName = result.media.suggestedProjectName,
                             mimeType = candidate.mimeType
                         ).let { project ->
