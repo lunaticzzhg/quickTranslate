@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
@@ -39,7 +40,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.Player
@@ -68,23 +68,18 @@ fun SessionScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalAlignment = Alignment.Start
     ) {
         Text(
-            text = state.title,
+            text = state.importedName,
             style = MaterialTheme.typography.titleLarge
         )
 
         Text(
-            text = state.message,
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Start
-        )
-
-        Text(
-            text = "${state.importedName} · ${state.importedMime} · ${state.importedDuration}",
+            text = "${state.importedMime} · ${state.importedDuration}",
             style = MaterialTheme.typography.bodySmall
         )
 
