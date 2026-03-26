@@ -7,10 +7,12 @@
 ## 2. 当前包含内容
 
 - `HomeRoute`、`HomeScreen`
+- `LinkImportRoute`（链接导入页，URL 输入/校验）
 - `HomeState` / `HomeIntent` / `HomeEffect`
 - `HomeViewModel`
 - `di/HomeModule.kt`（Koin 注入定义）
 - 系统文件选择器接入（音频/视频）
+- 链接导入入口（首页按钮 + 分享文本启动）
 - 导入后创建项目记录并展示最近项目列表
 - 项目删除确认交互
 - 项目卡片展示类型、字幕状态、最近学习时间

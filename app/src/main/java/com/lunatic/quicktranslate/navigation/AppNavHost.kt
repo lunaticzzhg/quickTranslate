@@ -1,5 +1,6 @@
 package com.lunatic.quicktranslate.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
@@ -7,21 +8,29 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.lunatic.quicktranslate.feature.home.HomeRoute
+import com.lunatic.quicktranslate.feature.home.LinkImportRoute
 import com.lunatic.quicktranslate.feature.home.TranscodeTasksRoute
 import com.lunatic.quicktranslate.feature.session.ImportedSessionMedia
 import com.lunatic.quicktranslate.feature.session.SessionNav
 import com.lunatic.quicktranslate.feature.session.SessionRoute
 
 private const val HOME_ROUTE = "home"
+private const val LINK_IMPORT_ROUTE = "link_import"
+private const val LINK_IMPORT_URL_ARG = "initialUrl"
 private const val TRANSCODE_TASKS_ROUTE = "transcode_tasks"
 
 @Composable
-fun AppNavHost() {
+fun AppNavHost(sharedUrl: String? = null) {
     val navController = rememberNavController()
+    val startDestination = if (sharedUrl.isNullOrBlank()) {
+        HOME_ROUTE
+    } else {
+        buildLinkImportRoute(sharedUrl)
+    }
 
     NavHost(
         navController = navController,
-        startDestination = HOME_ROUTE
+        startDestination = startDestination
     ) {
         composable(route = HOME_ROUTE) {
             HomeRoute(
@@ -38,9 +47,30 @@ fun AppNavHost() {
                         )
                     )
                 },
+                onNavigateToLinkImport = {
+                    navController.navigate(buildLinkImportRoute())
+                },
                 onNavigateToTranscodeTasks = {
                     navController.navigate(TRANSCODE_TASKS_ROUTE)
                 }
+            )
+        }
+
+        composable(
+            route = "$LINK_IMPORT_ROUTE?$LINK_IMPORT_URL_ARG={$LINK_IMPORT_URL_ARG}",
+            arguments = listOf(
+                navArgument(LINK_IMPORT_URL_ARG) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { entry ->
+            val initialUrl = entry.arguments?.getString(LINK_IMPORT_URL_ARG).orEmpty()
+            LinkImportRoute(
+                initialUrl = initialUrl,
+                onNavigateBack = { navController.popBackStack() },
+                onSubmitUrl = {}
             )
         }
 
@@ -78,4 +108,11 @@ fun AppNavHost() {
             )
         }
     }
+}
+
+private fun buildLinkImportRoute(initialUrl: String? = null): String {
+    if (initialUrl.isNullOrBlank()) {
+        return LINK_IMPORT_ROUTE
+    }
+    return "$LINK_IMPORT_ROUTE?$LINK_IMPORT_URL_ARG=${Uri.encode(initialUrl)}"
 }

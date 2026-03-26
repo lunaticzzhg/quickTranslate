@@ -16,6 +16,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun HomeRoute(
     onNavigateToSession: (Long, ImportedMedia) -> Unit,
+    onNavigateToLinkImport: () -> Unit,
     onNavigateToTranscodeTasks: () -> Unit,
     viewModel: HomeViewModel = koinViewModel()
 ) {
@@ -90,6 +91,7 @@ fun HomeRoute(
                 HomeEffect.LaunchFilePicker -> filePickerLauncher.launch(
                     arrayOf("audio/*", "video/*")
                 )
+                HomeEffect.NavigateToLinkImport -> onNavigateToLinkImport()
                 HomeEffect.NavigateToTranscodeTasks -> onNavigateToTranscodeTasks()
                 is HomeEffect.NavigateToSession -> onNavigateToSession(
                     effect.projectId,

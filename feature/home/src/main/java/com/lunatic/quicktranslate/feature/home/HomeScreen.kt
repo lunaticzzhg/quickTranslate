@@ -46,6 +46,12 @@ fun HomeScreen(
             Text(text = state.primaryActionLabel)
         }
         Button(
+            onClick = { onIntent(HomeIntent.ImportLinkClicked) },
+            modifier = Modifier.padding(top = 12.dp)
+        ) {
+            Text(text = state.importLinkLabel)
+        }
+        Button(
             onClick = { onIntent(HomeIntent.TranscodeEntryClicked) },
             modifier = Modifier.padding(top = 12.dp)
         ) {

@@ -58,6 +58,7 @@ class HomeViewModel(
     fun onIntent(intent: HomeIntent) {
         when (intent) {
             HomeIntent.PrimaryActionClicked -> emitEffect(HomeEffect.LaunchFilePicker)
+            HomeIntent.ImportLinkClicked -> emitEffect(HomeEffect.NavigateToLinkImport)
             HomeIntent.TranscodeEntryClicked -> emitEffect(HomeEffect.NavigateToTranscodeTasks)
             is HomeIntent.RecentProjectClicked -> openRecentProject(intent.projectId)
             is HomeIntent.MediaImported -> createProjectThenNavigate(intent.media)
