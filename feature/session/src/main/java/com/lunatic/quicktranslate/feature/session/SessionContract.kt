@@ -1,5 +1,6 @@
 package com.lunatic.quicktranslate.feature.session
 
+import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTaskStage
 import com.lunatic.quicktranslate.feature.session.subtitle.SubtitleSegment
 import com.lunatic.quicktranslate.feature.transcription.TranscriptionStatus
 
@@ -31,6 +32,7 @@ data class SessionState(
     val loopCountOption: LoopCountOption = LoopCountOption.THREE,
     val isLooping: Boolean = false,
     val loopRemainingCount: Int? = null,
+    val transcodeStage: ProjectTranscodeTaskStage? = null,
     val transcriptionStatus: TranscriptionStatus = TranscriptionStatus.IDLE,
     val transcriptionProgress: Int? = null,
     val transcriptionError: String? = null

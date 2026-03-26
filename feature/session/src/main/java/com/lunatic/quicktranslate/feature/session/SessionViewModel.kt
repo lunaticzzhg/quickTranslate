@@ -239,6 +239,7 @@ class SessionViewModel(
             val restored = restoreSavedSubtitles()
             if (!restored) {
                 mutableState.value = mutableState.value.copy(
+                    transcodeStage = ProjectTranscodeTaskStage.QUEUED,
                     transcriptionStatus = TranscriptionStatus.QUEUED,
                     transcriptionProgress = null,
                     transcriptionError = null
@@ -267,6 +268,7 @@ class SessionViewModel(
             return false
         }
         mutableState.value = mutableState.value.copy(
+            transcodeStage = ProjectTranscodeTaskStage.SUCCEEDED,
             transcriptionStatus = TranscriptionStatus.SUCCESS,
             transcriptionProgress = null,
             transcriptionError = null,
@@ -310,6 +312,7 @@ class SessionViewModel(
                 when (task.status) {
                     ProjectTranscodeTaskStatus.PENDING -> {
                         mutableState.value = mutableState.value.copy(
+                            transcodeStage = task.stage,
                             transcriptionStatus = TranscriptionStatus.QUEUED,
                             transcriptionProgress = null
                         )
@@ -317,6 +320,7 @@ class SessionViewModel(
 
                     ProjectTranscodeTaskStatus.RUNNING -> {
                         mutableState.value = mutableState.value.copy(
+                            transcodeStage = task.stage,
                             transcriptionStatus = TranscriptionStatus.PROCESSING,
                             transcriptionProgress = task.progress,
                             transcriptionError = null
@@ -327,6 +331,7 @@ class SessionViewModel(
                         val restored = restoreSavedSubtitles()
                         if (!restored) {
                             mutableState.value = mutableState.value.copy(
+                                transcodeStage = task.stage,
                                 transcriptionStatus = TranscriptionStatus.FAILED,
                                 transcriptionProgress = null,
                                 transcriptionError = "Transcription finished, but no usable subtitles were detected."
@@ -336,6 +341,7 @@ class SessionViewModel(
 
                     ProjectTranscodeTaskStatus.FAILED -> {
                         mutableState.value = mutableState.value.copy(
+                            transcodeStage = task.stage,
                             transcriptionStatus = TranscriptionStatus.FAILED,
                             transcriptionProgress = null,
                             transcriptionError = task.errorMessage
@@ -345,6 +351,7 @@ class SessionViewModel(
 
                     ProjectTranscodeTaskStatus.CANCELED -> {
                         mutableState.value = mutableState.value.copy(
+                            transcodeStage = task.stage,
                             transcriptionStatus = TranscriptionStatus.FAILED,
                             transcriptionProgress = null,
                             transcriptionError = "Transcription was canceled."

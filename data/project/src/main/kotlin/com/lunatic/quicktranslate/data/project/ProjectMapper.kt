@@ -8,6 +8,7 @@ fun ProjectEntity.toDomain(): Project {
         id = id,
         displayName = displayName,
         mediaUri = mediaUri,
+        sourceUri = sourceUri,
         mimeType = mimeType,
         durationMs = durationMs,
         subtitleStatus = subtitleStatus.toSubtitleStatus(),

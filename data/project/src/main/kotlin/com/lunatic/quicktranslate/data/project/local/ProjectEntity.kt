@@ -9,6 +9,7 @@ data class ProjectEntity(
     val id: Long = 0L,
     val displayName: String,
     val mediaUri: String,
+    val sourceUri: String,
     val mimeType: String,
     val durationMs: Long,
     val subtitleStatus: String,

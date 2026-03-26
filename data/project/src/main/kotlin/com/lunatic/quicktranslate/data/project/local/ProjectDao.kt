@@ -17,7 +17,14 @@ interface ProjectDao {
     @Query("SELECT * FROM projects WHERE id = :id LIMIT 1")
     suspend fun getById(id: Long): ProjectEntity?
 
-    @Query("SELECT * FROM projects WHERE mediaUri = :mediaUri ORDER BY updatedAtEpochMs DESC LIMIT 1")
+    @Query(
+        """
+        SELECT * FROM projects
+        WHERE mediaUri = :mediaUri OR sourceUri = :mediaUri
+        ORDER BY updatedAtEpochMs DESC
+        LIMIT 1
+        """
+    )
     suspend fun getByMediaUri(mediaUri: String): ProjectEntity?
 
     @Query("DELETE FROM projects WHERE id = :id")

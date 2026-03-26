@@ -78,8 +78,6 @@ interface ProjectTranscodeTaskDao {
         """
         UPDATE project_transcode_tasks
         SET mediaUri = :mediaUri,
-            stage = 'RESOLVING',
-            progress = 0,
             updatedAtEpochMs = :updatedAtEpochMs
         WHERE id = :taskId
           AND status = 'RUNNING'

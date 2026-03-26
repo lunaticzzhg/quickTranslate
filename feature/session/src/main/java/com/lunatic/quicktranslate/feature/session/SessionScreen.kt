@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
+import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTaskStage
 import com.lunatic.quicktranslate.feature.transcription.TranscriptionStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -95,6 +96,7 @@ fun SessionScreen(
             Text(
                 text = transcriptionStatusLabel(
                     status = state.transcriptionStatus,
+                    stage = state.transcodeStage,
                     progress = state.transcriptionProgress
                 ),
                 style = MaterialTheme.typography.bodySmall,
@@ -429,14 +431,19 @@ private fun EmptyTranscriptionGuidanceCard(
 
 private fun transcriptionStatusLabel(
     status: TranscriptionStatus,
+    stage: ProjectTranscodeTaskStage?,
     progress: Int?
 ): String {
     return when (status) {
         TranscriptionStatus.IDLE -> "Transcription: idle"
-        TranscriptionStatus.QUEUED -> "Transcription: queued"
+        TranscriptionStatus.QUEUED -> {
+            val stageText = stage?.toStageDisplayName()
+            if (stageText != null) "Task: queued · $stageText" else "Task: queued"
+        }
         TranscriptionStatus.PROCESSING -> {
             val value = progress?.coerceIn(0, 100)
-            if (value != null) "Transcription: processing... $value%" else "Transcription: processing..."
+            val stageText = stage?.toStageDisplayName() ?: "Processing"
+            if (value != null) "Task: $stageText · $value%" else "Task: $stageText"
         }
         TranscriptionStatus.SUCCESS -> "Transcription: ready"
         TranscriptionStatus.FAILED -> "Transcription: failed"
@@ -449,10 +456,23 @@ private fun subtitlePlaceholderText(state: SessionState): String {
         TranscriptionStatus.QUEUED -> "Transcription queued. Preparing subtitle generation."
         TranscriptionStatus.PROCESSING -> {
             val value = state.transcriptionProgress?.coerceIn(0, 100)
-            if (value != null) "Generating subtitles... $value%" else "Generating subtitles..."
+            val stageText = state.transcodeStage?.toStageDisplayName() ?: "Processing"
+            if (value != null) "$stageText... $value%" else "$stageText..."
         }
         TranscriptionStatus.SUCCESS -> "No subtitles generated."
         TranscriptionStatus.FAILED -> state.transcriptionError ?: "Transcription failed. Please retry."
+    }
+}
+
+private fun ProjectTranscodeTaskStage.toStageDisplayName(): String {
+    return when (this) {
+        ProjectTranscodeTaskStage.QUEUED -> "Queued"
+        ProjectTranscodeTaskStage.RESOLVING -> "Resolving link"
+        ProjectTranscodeTaskStage.DOWNLOADING -> "Downloading media"
+        ProjectTranscodeTaskStage.TRANSCRIBING -> "Transcribing audio"
+        ProjectTranscodeTaskStage.SUCCEEDED -> "Completed"
+        ProjectTranscodeTaskStage.FAILED -> "Failed"
+        ProjectTranscodeTaskStage.CANCELED -> "Canceled"
     }
 }
 

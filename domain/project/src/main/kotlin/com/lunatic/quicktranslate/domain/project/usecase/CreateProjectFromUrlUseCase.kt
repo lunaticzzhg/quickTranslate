@@ -25,11 +25,7 @@ class CreateProjectFromUrlUseCase(
             }
         }
 
-        projectRepository.getProjectByMediaUri(resolvedMediaUrl)?.let { existing ->
-            enqueueProjectTranscodeTaskUseCase(
-                projectId = existing.id,
-                mediaUri = resolvedMediaUrl
-            )
+        projectRepository.getProjectByMediaUri(normalizedUrl)?.let { existing ->
             return existing
         }
 
@@ -37,6 +33,7 @@ class CreateProjectFromUrlUseCase(
             CreateProjectInput(
                 displayName = normalizedUrl.defaultDisplayName(),
                 mediaUri = resolvedMediaUrl,
+                sourceUri = normalizedUrl,
                 mimeType = "application/octet-stream",
                 durationMs = -1L
             )

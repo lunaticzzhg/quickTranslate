@@ -11,7 +11,7 @@ import androidx.room.RoomDatabase
         ProjectPlaybackStateEntity::class,
         ProjectTranscodeTaskEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class QuickTranslateDatabase : RoomDatabase() {

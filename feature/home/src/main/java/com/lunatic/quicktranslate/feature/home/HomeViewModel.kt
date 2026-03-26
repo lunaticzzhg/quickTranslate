@@ -1,5 +1,6 @@
 package com.lunatic.quicktranslate.feature.home
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lunatic.quicktranslate.domain.project.model.CreateProjectInput
@@ -67,16 +68,11 @@ class HomeViewModel(
 
     private fun createProjectThenNavigate(media: ImportedMedia) {
         viewModelScope.launch {
+            val dedupKey = media.uri.toLocalOrRemoteDedupKey()
             val existingProject = runCatching {
-                projectRepository.getProjectByMediaUri(media.uri)
+                projectRepository.getProjectByMediaUri(dedupKey)
             }.getOrNull()
             if (existingProject != null) {
-                runCatching {
-                    enqueueProjectTranscodeTaskUseCase(
-                        projectId = existingProject.id,
-                        mediaUri = media.uri
-                    )
-                }
                 emitEffect(
                     HomeEffect.NavigateToSession(
                         projectId = existingProject.id,
@@ -95,6 +91,7 @@ class HomeViewModel(
                     CreateProjectInput(
                         displayName = media.displayName,
                         mediaUri = media.uri,
+                        sourceUri = dedupKey,
                         mimeType = media.mimeType,
                         durationMs = media.durationMs
                     )
@@ -206,5 +203,20 @@ class HomeViewModel(
                 )
             )
         )
+    }
+
+    private fun String.toLocalOrRemoteDedupKey(): String {
+        val normalized = trim()
+        if (normalized.isBlank()) {
+            return normalized
+        }
+        val uri = runCatching { Uri.parse(normalized) }.getOrNull() ?: return normalized
+        val scheme = uri.scheme?.lowercase().orEmpty()
+        return when (scheme) {
+            "http", "https" -> normalized
+            "file" -> uri.path?.takeIf { it.isNotBlank() } ?: normalized
+            "content" -> uri.path?.takeIf { it.isNotBlank() } ?: normalized
+            else -> normalized
+        }
     }
 }

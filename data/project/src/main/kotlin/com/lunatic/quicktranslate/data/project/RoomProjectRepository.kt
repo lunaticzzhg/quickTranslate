@@ -34,6 +34,7 @@ class RoomProjectRepository(
         val entity = ProjectEntity(
             displayName = input.displayName,
             mediaUri = input.mediaUri,
+            sourceUri = input.sourceUri.ifBlank { input.mediaUri },
             mimeType = input.mimeType,
             durationMs = input.durationMs,
             subtitleStatus = SubtitleStatus.NOT_STARTED.name,

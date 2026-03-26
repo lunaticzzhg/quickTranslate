@@ -17,11 +17,7 @@ class CreateProjectFromResolvedLinkUseCase(
     ): Project {
         val normalizedSource = sourceUrl.trim()
         val normalizedResolved = resolvedMediaUrl.trim()
-        projectRepository.getProjectByMediaUri(normalizedResolved)?.let { existing ->
-            enqueueProjectTranscodeTaskUseCase(
-                projectId = existing.id,
-                mediaUri = normalizedResolved
-            )
+        projectRepository.getProjectByMediaUri(normalizedSource)?.let { existing ->
             return existing
         }
 
@@ -29,6 +25,7 @@ class CreateProjectFromResolvedLinkUseCase(
             CreateProjectInput(
                 displayName = displayName.ifBlank { normalizedSource },
                 mediaUri = normalizedResolved,
+                sourceUri = normalizedSource,
                 mimeType = mimeType ?: "application/octet-stream",
                 durationMs = -1L
             )

@@ -41,7 +41,7 @@ class SessionProjectTranscodeContext(
         transcodeTaskRepository.updateRunningTaskProgress(
             taskId = task.id,
             stage = stage,
-            progress = progress
+            progress = toOverallProgress(stage, progress)
         )
     }
 
@@ -51,10 +51,28 @@ class SessionProjectTranscodeContext(
                 transcodeTaskRepository.updateRunningTaskProgress(
                     taskId = task.id,
                     stage = stage,
-                    progress = progress
+                    progress = toOverallProgress(stage, progress)
                 )
             }
         }
+    }
+
+    private fun toOverallProgress(stage: ProjectTranscodeTaskStage, stageProgress: Int?): Int? {
+        val bounded = stageProgress?.coerceIn(0, 100)
+        return when (stage) {
+            ProjectTranscodeTaskStage.QUEUED -> 0
+            ProjectTranscodeTaskStage.RESOLVING -> bounded?.let { scale(it, 0, 10) } ?: 0
+            ProjectTranscodeTaskStage.DOWNLOADING -> bounded?.let { scale(it, 10, 60) } ?: 10
+            ProjectTranscodeTaskStage.TRANSCRIBING -> bounded?.let { scale(it, 60, 99) } ?: 60
+            ProjectTranscodeTaskStage.SUCCEEDED -> 100
+            ProjectTranscodeTaskStage.FAILED -> bounded?.coerceIn(0, 99)
+            ProjectTranscodeTaskStage.CANCELED -> bounded?.coerceIn(0, 99)
+        }
+    }
+
+    private fun scale(progress: Int, start: Int, end: Int): Int {
+        val span = (end - start).coerceAtLeast(0)
+        return start + ((span * progress) / 100)
     }
 }
 
@@ -119,6 +137,10 @@ class SessionTranscribeStep(
     override suspend fun execute(context: SessionProjectTranscodeContext) {
         val localMedia = context.localMedia
             ?: error("Local media is missing before transcription step.")
+        context.updateProgress(
+            stage = ProjectTranscodeTaskStage.TRANSCRIBING,
+            progress = 0
+        )
         pipeline.run(
             projectId = context.task.projectId,
             mediaUri = localMedia.localPath,
