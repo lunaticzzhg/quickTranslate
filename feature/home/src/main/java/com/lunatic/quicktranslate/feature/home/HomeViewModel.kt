@@ -8,6 +8,7 @@ import com.lunatic.quicktranslate.domain.project.model.SubtitleStatus
 import com.lunatic.quicktranslate.domain.project.usecase.CreateProjectUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.DeleteProjectUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.EnqueueProjectTranscodeTaskUseCase
+import com.lunatic.quicktranslate.domain.project.usecase.GetProjectByMediaUriUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.ObserveRecentProjectsUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.RestoreAndResumeProjectTranscodeQueueUseCase
 import java.time.Instant
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class HomeViewModel(
     private val createProjectUseCase: CreateProjectUseCase,
+    private val getProjectByMediaUriUseCase: GetProjectByMediaUriUseCase,
     private val deleteProjectUseCase: DeleteProjectUseCase,
     observeRecentProjectsUseCase: ObserveRecentProjectsUseCase,
     private val restoreAndResumeProjectTranscodeQueueUseCase: RestoreAndResumeProjectTranscodeQueueUseCase,
@@ -68,6 +70,29 @@ class HomeViewModel(
 
     private fun createProjectThenNavigate(media: ImportedMedia) {
         viewModelScope.launch {
+            val existingProject = runCatching {
+                getProjectByMediaUriUseCase(media.uri)
+            }.getOrNull()
+            if (existingProject != null) {
+                runCatching {
+                    enqueueProjectTranscodeTaskUseCase(
+                        projectId = existingProject.id,
+                        mediaUri = media.uri
+                    )
+                }
+                emitEffect(
+                    HomeEffect.NavigateToSession(
+                        projectId = existingProject.id,
+                        media = ImportedMedia(
+                            uri = existingProject.mediaUri,
+                            displayName = existingProject.displayName,
+                            mimeType = existingProject.mimeType,
+                            durationMs = existingProject.durationMs
+                        )
+                    )
+                )
+                return@launch
+            }
             runCatching {
                 createProjectUseCase(
                     CreateProjectInput(

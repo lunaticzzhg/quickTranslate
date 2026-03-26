@@ -22,6 +22,13 @@ class RoomProjectRepository(
         return projectDao.getById(projectId)?.toDomain()
     }
 
+    override suspend fun getProjectByMediaUri(mediaUri: String): Project? {
+        if (mediaUri.isBlank()) {
+            return null
+        }
+        return projectDao.getByMediaUri(mediaUri)?.toDomain()
+    }
+
     override suspend fun createProject(input: CreateProjectInput): Project {
         val now = System.currentTimeMillis()
         val entity = ProjectEntity(

@@ -5,6 +5,7 @@ import com.lunatic.quicktranslate.domain.project.usecase.DeleteProjectUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.BumpProjectTranscodeTaskPriorityUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.EnqueueProjectTranscodeTaskUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.GetProjectLoopConfigUseCase
+import com.lunatic.quicktranslate.domain.project.usecase.GetProjectByMediaUriUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.GetProjectPlaybackPositionUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.GetProjectSubtitlesUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.ObserveRecentProjectsUseCase
@@ -19,6 +20,7 @@ import org.koin.dsl.module
 
 val projectDomainModule = module {
     factory { CreateProjectUseCase(get()) }
+    factory { GetProjectByMediaUriUseCase(get()) }
     factory { ObserveRecentProjectsUseCase(get()) }
     factory { DeleteProjectUseCase(get()) }
     factory { UpdateProjectSubtitleStatusUseCase(get()) }
