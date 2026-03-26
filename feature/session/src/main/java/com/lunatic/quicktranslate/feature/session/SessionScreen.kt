@@ -12,26 +12,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Card
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -47,7 +40,6 @@ import androidx.media3.ui.PlayerView
 import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTaskStage
 import com.lunatic.quicktranslate.feature.transcription.TranscriptionStatus
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SessionScreen(
     state: SessionState,
@@ -57,7 +49,6 @@ fun SessionScreen(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val subtitleListState = rememberLazyListState()
-    var isLoopPanelOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.activeSubtitleIndex) {
         if (state.activeSubtitleIndex >= 0 && state.activeSubtitleIndex < state.subtitles.size) {
@@ -169,7 +160,7 @@ fun SessionScreen(
                     )
                 }
             },
-            enabled = !state.isLooping,
+            enabled = !state.isLoopMode,
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -182,11 +173,14 @@ fun SessionScreen(
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(onClick = { onIntent(SessionIntent.PlayPauseClicked) }) {
+            Button(
+                onClick = { onIntent(SessionIntent.PlayPauseClicked) },
+                enabled = !state.isLoopMode
+            ) {
                 Text(text = if (state.isPlaying) "Pause" else "Play")
             }
-            Button(onClick = { isLoopPanelOpen = true }) {
-                Text(text = "Loop")
+            Button(onClick = { onIntent(SessionIntent.LoopButtonClicked) }) {
+                Text(text = if (state.isLoopMode) "Exit Loop" else "Loop")
             }
         }
 
@@ -243,23 +237,41 @@ fun SessionScreen(
             } else {
                 val rangeStart = selectedRangeStart(state)
                 val rangeEnd = selectedRangeEnd(state)
+                val pendingLoopStart = if (
+                    state.isLoopMode &&
+                    state.selectedRangeStartIndex != null &&
+                    state.selectedRangeEndIndex == null
+                ) {
+                    state.selectedRangeStartIndex
+                } else {
+                    null
+                }
                 itemsIndexed(state.subtitles, key = { _, item -> item.id }) { index, segment ->
-                    if (rangeStart != null && index == rangeStart) {
-                        SelectionBracketItem(
-                            top = true,
-                            color = MaterialTheme.colorScheme.tertiary
-                        )
-                    }
-
                     val isActive = index == state.activeSubtitleIndex
-                    val activeColor = MaterialTheme.colorScheme.primary
+                    val isPendingLoopStart = pendingLoopStart == index
+                    val isInSelectedLoopRange = state.isLoopMode &&
+                        rangeStart != null &&
+                        rangeEnd != null &&
+                        index in rangeStart..rangeEnd
+                    val loopColor = MaterialTheme.colorScheme.tertiary
+                    val defaultActiveBarColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    val isLoopStyled = isInSelectedLoopRange || isPendingLoopStart
+                    val baseContainerColor = if (isLoopStyled) {
+                        MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.72f)
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    }
+                    val activeContainerColor = deepenColor(baseContainerColor, amount = 0.08f)
+                    val activeBarColor = if (isLoopStyled) loopColor else defaultActiveBarColor
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = if (isActive) 2.dp else 0.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = if (isActive) {
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)
+                                activeContainerColor
                             } else {
-                                MaterialTheme.colorScheme.surfaceVariant
+                                baseContainerColor
                             }
                         ),
                         onClick = { onIntent(SessionIntent.SubtitleClicked(segment)) }
@@ -276,7 +288,7 @@ fun SessionScreen(
                                         .height(64.dp)
                                         .drawBehind {
                                             drawLine(
-                                                color = activeColor,
+                                                color = activeBarColor,
                                                 start = Offset(size.width / 2, 0f),
                                                 end = Offset(size.width / 2, size.height),
                                                 strokeWidth = size.width
@@ -287,8 +299,26 @@ fun SessionScreen(
                             Column(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .padding(10.dp)
+                                    .padding(if (isActive) 12.dp else 10.dp)
                             ) {
+                                if (isPendingLoopStart) {
+                                    Text(
+                                        text = "Loop Start Selected",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.tertiary
+                                    )
+                                    Text(
+                                        text = "Tap another segment to confirm range",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else if (isInSelectedLoopRange) {
+                                    Text(
+                                        text = "In Loop Range",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.tertiary
+                                    )
+                                }
                                 Text(
                                     text = "${formatClock(segment.startMs)} - ${formatClock(segment.endMs)}",
                                     style = MaterialTheme.typography.labelSmall
@@ -307,57 +337,6 @@ fun SessionScreen(
                                 )
                             }
                         }
-                    }
-
-                    if (rangeEnd != null && index == rangeEnd) {
-                        SelectionBracketItem(
-                            top = false,
-                            color = MaterialTheme.colorScheme.tertiary
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    if (isLoopPanelOpen) {
-        ModalBottomSheet(onDismissRequest = { isLoopPanelOpen = false }) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "Loop Controls",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    LoopCountOption.entries.forEach { option ->
-                        Button(
-                            onClick = { onIntent(SessionIntent.LoopCountChanged(option)) },
-                            enabled = !state.isLooping
-                        ) {
-                            val suffix = if (state.loopCountOption == option) " *" else ""
-                            Text(text = option.label + suffix)
-                        }
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(
-                        onClick = { onIntent(SessionIntent.StartLoopClicked) },
-                        enabled = !state.isLooping
-                    ) {
-                        Text(text = "Start Loop")
-                    }
-                    Button(
-                        onClick = { onIntent(SessionIntent.StopLoopClicked) },
-                        enabled = state.isLooping
-                    ) {
-                        Text(text = "Stop Loop")
-                    }
-                    Button(onClick = { isLoopPanelOpen = false }) {
-                        Text(text = "Done")
                     }
                 }
             }
@@ -478,6 +457,18 @@ private fun formatClock(valueMs: Long): String {
     return "%02d:%02d".format(minutes, seconds)
 }
 
+private fun deepenColor(
+    color: Color,
+    amount: Float
+): Color {
+    val boundedAmount = amount.coerceIn(0f, 1f)
+    return color.copy(
+        red = (color.red - boundedAmount).coerceIn(0f, 1f),
+        green = (color.green - boundedAmount).coerceIn(0f, 1f),
+        blue = (color.blue - boundedAmount).coerceIn(0f, 1f)
+    )
+}
+
 private fun selectedRangeStart(state: SessionState): Int? {
     val start = state.selectedRangeStartIndex ?: return null
     val end = state.selectedRangeEndIndex ?: return null
@@ -488,56 +479,4 @@ private fun selectedRangeEnd(state: SessionState): Int? {
     val start = state.selectedRangeStartIndex ?: return null
     val end = state.selectedRangeEndIndex ?: return null
     return maxOf(start, end)
-}
-
-@Composable
-private fun SelectionBracketItem(
-    top: Boolean,
-    color: Color
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(2.dp)
-                .drawBehind {
-                    drawLine(
-                        color = color.copy(alpha = 0.65f),
-                        start = Offset(0f, size.height / 2),
-                        end = Offset(size.width, size.height / 2),
-                        strokeWidth = size.height
-                    )
-                }
-        )
-        Surface(
-            shape = RoundedCornerShape(10.dp),
-            color = color.copy(alpha = 0.14f)
-        ) {
-            Text(
-                text = if (top) "Loop Start" else "Loop End",
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                color = color,
-                style = MaterialTheme.typography.labelSmall
-            )
-        }
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(2.dp)
-                .drawBehind {
-                    drawLine(
-                        color = color.copy(alpha = 0.65f),
-                        start = Offset(0f, size.height / 2),
-                        end = Offset(size.width, size.height / 2),
-                        strokeWidth = size.height
-                    )
-                }
-        )
-    }
 }

@@ -30,6 +30,7 @@ data class SessionState(
     val selectedRangeStartIndex: Int? = null,
     val selectedRangeEndIndex: Int? = null,
     val loopCountOption: LoopCountOption = LoopCountOption.THREE,
+    val isLoopMode: Boolean = false,
     val isLooping: Boolean = false,
     val loopRemainingCount: Int? = null,
     val transcodeStage: ProjectTranscodeTaskStage? = null,
@@ -51,9 +52,7 @@ sealed interface SessionIntent {
     data object PlayPauseClicked : SessionIntent
     data class SeekToRequested(val positionMs: Long) : SessionIntent
     data class SubtitleClicked(val segment: SubtitleSegment) : SessionIntent
-    data class LoopCountChanged(val option: LoopCountOption) : SessionIntent
-    data object StartLoopClicked : SessionIntent
-    data object StopLoopClicked : SessionIntent
+    data object LoopButtonClicked : SessionIntent
     data object RetryTranscriptionClicked : SessionIntent
 }
 

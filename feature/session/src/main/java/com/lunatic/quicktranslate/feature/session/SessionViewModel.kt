@@ -98,9 +98,7 @@ class SessionViewModel(
             SessionIntent.PlayPauseClicked -> onPlayPauseClicked()
             is SessionIntent.SeekToRequested -> onSeekRequested(intent.positionMs)
             is SessionIntent.SubtitleClicked -> onSubtitleClicked(intent.segment)
-            is SessionIntent.LoopCountChanged -> onLoopCountChanged(intent.option)
-            SessionIntent.StartLoopClicked -> startLoop()
-            SessionIntent.StopLoopClicked -> stopLoop()
+            SessionIntent.LoopButtonClicked -> onLoopButtonClicked()
             SessionIntent.RetryTranscriptionClicked -> startTranscription()
         }
     }
@@ -122,6 +120,9 @@ class SessionViewModel(
     }
 
     private fun onPlayPauseClicked() {
+        if (mutableState.value.isLoopMode) {
+            return
+        }
         if (mutableState.value.isPlaying) {
             sessionPlayer.pause()
         } else {
@@ -130,49 +131,91 @@ class SessionViewModel(
     }
 
     private fun onSubtitleClicked(segment: SubtitleSegment) {
-        if (mutableState.value.isLooping) {
-            stopLoop()
-        }
+        val currentState = mutableState.value
         val subtitles = mutableState.value.subtitles
         val clickedIndex = subtitles.indexOfFirst { it.id == segment.id }
         if (clickedIndex < 0) {
             return
         }
 
-        val start = mutableState.value.selectedRangeStartIndex
-        val end = mutableState.value.selectedRangeEndIndex
-
-        val (newStart, newEnd) = when {
-            start == null -> clickedIndex to clickedIndex
-            end != null && start != end -> clickedIndex to clickedIndex
-            else -> minOf(start, clickedIndex) to maxOf(start, clickedIndex)
+        if (!currentState.isLoopMode) {
+            sessionPlayer.seekTo(segment.startMs)
+            return
         }
 
+        val start = currentState.selectedRangeStartIndex
+        val end = currentState.selectedRangeEndIndex
+        val hasConfirmedRange = start != null && end != null
+        val waitingForEnd = start != null && end == null
+
+        if (currentState.isLooping || hasConfirmedRange || !waitingForEnd) {
+            stopLoop()
+            sessionPlayer.pause()
+            mutableState.value = mutableState.value.copy(
+                selectedRangeStartIndex = clickedIndex,
+                selectedRangeEndIndex = null
+            )
+            loopController.persistConfigAsync(
+                projectId = importedMedia.projectId,
+                state = mutableState.value,
+                scope = viewModelScope
+            )
+            return
+        }
+
+        val rangeStart = minOf(start, clickedIndex)
+        val rangeEnd = maxOf(start, clickedIndex)
         mutableState.value = mutableState.value.copy(
-            selectedRangeStartIndex = newStart,
-            selectedRangeEndIndex = newEnd
+            selectedRangeStartIndex = rangeStart,
+            selectedRangeEndIndex = rangeEnd
         )
         loopController.persistConfigAsync(
             projectId = importedMedia.projectId,
             state = mutableState.value,
             scope = viewModelScope
         )
-        sessionPlayer.seekTo(segment.startMs)
+        startLoop()
     }
 
     private fun onSeekRequested(positionMs: Long) {
+        if (mutableState.value.isLoopMode) {
+            return
+        }
         if (mutableState.value.isLooping) {
             stopLoop()
         }
         sessionPlayer.seekTo(positionMs)
     }
 
-    private fun onLoopCountChanged(option: LoopCountOption) {
-        if (mutableState.value.isLooping) {
+    private fun onLoopButtonClicked() {
+        val current = mutableState.value
+        if (current.isLoopMode) {
+            stopLoop()
+            mutableState.value = mutableState.value.copy(
+                isLoopMode = false,
+                selectedRangeStartIndex = null,
+                selectedRangeEndIndex = null
+            )
+            loopController.persistConfigAsync(
+                projectId = importedMedia.projectId,
+                state = mutableState.value,
+                scope = viewModelScope
+            )
             return
         }
-        mutableState.value = mutableState.value.copy(
-            loopCountOption = option
+        stopLoop()
+        sessionPlayer.pause()
+        val firstLoopIndex = SubtitleMatcher.findActiveIndex(
+            segments = current.subtitles,
+            positionMs = current.currentPositionMs
+        ).takeIf { it >= 0 } ?: current.activeSubtitleIndex.takeIf { it >= 0 }
+        mutableState.value = current.copy(
+            isLoopMode = true,
+            isLooping = false,
+            loopRemainingCount = null,
+            selectedRangeStartIndex = firstLoopIndex,
+            selectedRangeEndIndex = null,
+            loopCountOption = LoopCountOption.INFINITE
         )
         loopController.persistConfigAsync(
             projectId = importedMedia.projectId,
