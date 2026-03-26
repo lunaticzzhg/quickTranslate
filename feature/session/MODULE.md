@@ -15,6 +15,11 @@
 - `transcription/SessionTranscriptionPipeline`（按阶段执行转写：媒体准备 -> 转写执行 -> 字幕持久化）
 - `transcription/SessionMediaPrepareStage`（媒体准备阶段）
 - `transcription/SessionRemoteMediaDownloadStage`（远程媒体下载并落地本地文件）
+- `transcription/SessionRemoteMediaSourceResolver`（远程媒体来源解析与下载策略路由）
+- `transcription/SessionYtDlpMediaDownloader`（yt-dlp 平台下载器）
+- `transcription/SessionDirectHttpMediaDownloader`（OkHttp 直链下载器）
+- `transcription/SessionProjectTranscodeChain`（队列转码责任链，按步骤执行）
+- `transcription/SessionProjectTranscodeStep`（责任链步骤接口，可插拔）
 - `transcription/SessionTranscriptionExecuteStage`（转写执行阶段）
 - `transcription/SessionSubtitlePersistStage`（字幕持久化阶段）
 - `transcription/SessionProjectTranscodeTaskExecutor`（队列任务执行器，桥接到转写 pipeline）

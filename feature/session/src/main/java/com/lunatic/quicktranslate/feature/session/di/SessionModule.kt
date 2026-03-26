@@ -7,12 +7,20 @@ import com.lunatic.quicktranslate.feature.session.loop.SessionLoopController
 import com.lunatic.quicktranslate.feature.session.playback.SessionPlaybackCoordinator
 import com.lunatic.quicktranslate.feature.session.transcription.EmbeddedWhisperConfigProvider
 import com.lunatic.quicktranslate.feature.session.transcription.SessionTranscriptionCoordinator
+import com.lunatic.quicktranslate.feature.session.transcription.SessionDirectHttpMediaDownloader
 import com.lunatic.quicktranslate.feature.session.transcription.SessionMediaPrepareStage
 import com.lunatic.quicktranslate.feature.session.transcription.SessionRemoteMediaDownloadStage
+import com.lunatic.quicktranslate.feature.session.transcription.SessionRemoteMediaSourceResolver
+import com.lunatic.quicktranslate.feature.session.transcription.SessionProjectTranscodeChain
 import com.lunatic.quicktranslate.feature.session.transcription.SessionProjectTranscodeTaskExecutor
+import com.lunatic.quicktranslate.feature.session.transcription.SessionEnsureLocalMediaStep
+import com.lunatic.quicktranslate.feature.session.transcription.SessionMarkResolvingStep
 import com.lunatic.quicktranslate.feature.session.transcription.SessionSubtitlePersistStage
+import com.lunatic.quicktranslate.feature.session.transcription.SessionSyncProjectMediaSourceStep
+import com.lunatic.quicktranslate.feature.session.transcription.SessionTranscribeStep
 import com.lunatic.quicktranslate.feature.session.transcription.SessionTranscriptionExecuteStage
 import com.lunatic.quicktranslate.feature.session.transcription.SessionTranscriptionPipeline
+import com.lunatic.quicktranslate.feature.session.transcription.SessionYtDlpMediaDownloader
 import com.lunatic.quicktranslate.domain.project.repository.ProjectTranscodeTaskExecutor
 import com.lunatic.quicktranslate.feature.transcription.MockTranscriptionService
 import com.lunatic.quicktranslate.feature.transcription.TranscriptionService
@@ -60,14 +68,20 @@ val sessionModule = module {
     factory { SessionLoopController(get(), get()) }
     factory { SessionPlaybackCoordinator(get(), get()) }
     single { OkHttpClient.Builder().build() }
+    factory { SessionRemoteMediaSourceResolver(get()) }
+    factory { SessionDirectHttpMediaDownloader(appContext = androidContext(), okHttpClient = get()) }
     factory {
-        SessionRemoteMediaDownloadStage(
+        SessionYtDlpMediaDownloader(
             appContext = androidContext(),
-            okHttpClient = get(),
-            resolvePlatformLinkUseCase = get(),
-            ytDlpPath = BuildConfig.YTDLP_PATH,
             ytDlpCookiesPath = BuildConfig.YTDLP_COOKIES_PATH,
             ytDlpExtractorArgs = BuildConfig.YTDLP_EXTRACTOR_ARGS
+        )
+    }
+    factory {
+        SessionRemoteMediaDownloadStage(
+            sourceResolver = get(),
+            ytDlpMediaDownloader = get(),
+            directHttpMediaDownloader = get()
         )
     }
     factory { SessionMediaPrepareStage(androidContext()) }
@@ -80,7 +94,21 @@ val sessionModule = module {
             persistStage = get()
         )
     }
-    factory<ProjectTranscodeTaskExecutor> { SessionProjectTranscodeTaskExecutor(get(), get(), get(), get()) }
+    factory { SessionMarkResolvingStep() }
+    factory { SessionEnsureLocalMediaStep(get()) }
+    factory { SessionSyncProjectMediaSourceStep(get()) }
+    factory { SessionTranscribeStep(get()) }
+    factory {
+        SessionProjectTranscodeChain(
+            steps = listOf(
+                get<SessionMarkResolvingStep>(),
+                get<SessionEnsureLocalMediaStep>(),
+                get<SessionSyncProjectMediaSourceStep>(),
+                get<SessionTranscribeStep>()
+            )
+        )
+    }
+    factory<ProjectTranscodeTaskExecutor> { SessionProjectTranscodeTaskExecutor(get(), get()) }
     factory { SessionTranscriptionCoordinator(get(), get()) }
     viewModelOf(::SessionViewModel)
 }
