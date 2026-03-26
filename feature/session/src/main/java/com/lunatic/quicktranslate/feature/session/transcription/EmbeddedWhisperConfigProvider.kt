@@ -9,7 +9,7 @@ import java.util.zip.ZipFile
 class EmbeddedWhisperConfigProvider(
     private val context: Context
 ) {
-    fun resolve(language: String): WhisperCliConfig {
+    fun resolve(language: String, threads: Int): WhisperCliConfig {
         val cliFile = resolveExecutableCli()
         val modelFile = extractAssetIfNeeded(
             assetPath = "whisper/models/ggml-tiny.en.bin",
@@ -18,7 +18,8 @@ class EmbeddedWhisperConfigProvider(
         return WhisperCliConfig(
             cliPath = cliFile.absolutePath,
             modelPath = modelFile.absolutePath,
-            language = language.ifBlank { "en" }
+            language = language.ifBlank { "en" },
+            threads = threads
         )
     }
 

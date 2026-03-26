@@ -56,6 +56,13 @@ android {
                     .get()
             )
         )
+        buildConfigField(
+            "int",
+            "WHISPER_THREADS",
+            providers.gradleProperty("quicktranslate.whisper.threads")
+                .orElse("0")
+                .get()
+        )
     }
 
     compileOptions {

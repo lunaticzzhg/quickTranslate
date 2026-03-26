@@ -21,7 +21,8 @@ import kotlinx.coroutines.withContext
 
 data class PreparedTranscriptionMedia(
     val path: String,
-    val cleanup: (() -> Unit)? = null
+    val cleanup: (() -> Unit)? = null,
+    val transcodedToWav: Boolean = false
 )
 
 class SessionMediaPrepareStage(
@@ -30,23 +31,48 @@ class SessionMediaPrepareStage(
     companion object {
         // Classic WAV (RIFF) uses 32-bit chunk sizes.
         private const val MAX_WAV_DATA_BYTES = 0xFFFF_FFFFL - 36L
+        private val AUDIO_EXTENSIONS = setOf(
+            "wav",
+            "pcm",
+            "mp3",
+            "m4a",
+            "aac",
+            "flac",
+            "ogg",
+            "opus",
+            "webm"
+        )
+        private val VIDEO_EXTENSIONS = setOf(
+            "mp4",
+            "m4v",
+            "mov",
+            "mkv",
+            "3gp"
+        )
     }
 
-    suspend fun prepare(mediaUri: String): PreparedTranscriptionMedia {
+    suspend fun prepare(
+        mediaUri: String,
+        forceTranscodeToWav: Boolean = false
+    ): PreparedTranscriptionMedia {
         return withContext(Dispatchers.IO) {
-            prepareMediaPath(mediaUri)
+            prepareMediaPath(mediaUri, forceTranscodeToWav)
         }
     }
 
-    private fun prepareMediaPath(mediaUri: String): PreparedTranscriptionMedia {
+    private fun prepareMediaPath(
+        mediaUri: String,
+        forceTranscodeToWav: Boolean
+    ): PreparedTranscriptionMedia {
         val uri = Uri.parse(mediaUri)
         val scheme = uri.scheme.orEmpty()
         val mimeType = resolveMimeType(uri)
-        if (shouldTranscodeToWav(uri = uri, mimeType = mimeType)) {
+        if (forceTranscodeToWav || shouldTranscodeToWav(uri = uri, mimeType = mimeType)) {
             val wavFile = decodeAudioTrackToWav(uri = uri, fallbackPath = mediaUri)
             return PreparedTranscriptionMedia(
                 path = wavFile.absolutePath,
-                cleanup = { wavFile.delete() }
+                cleanup = { wavFile.delete() },
+                transcodedToWav = true
             )
         }
         if (scheme.equals("content", ignoreCase = true)) {
@@ -60,13 +86,20 @@ class SessionMediaPrepareStage(
             }
             return PreparedTranscriptionMedia(
                 path = file.absolutePath,
-                cleanup = { file.delete() }
+                cleanup = { file.delete() },
+                transcodedToWav = false
             )
         }
         if (scheme.equals("file", ignoreCase = true)) {
-            return PreparedTranscriptionMedia(path = uri.path.orEmpty())
+            return PreparedTranscriptionMedia(
+                path = uri.path.orEmpty(),
+                transcodedToWav = false
+            )
         }
-        return PreparedTranscriptionMedia(path = mediaUri)
+        return PreparedTranscriptionMedia(
+            path = mediaUri,
+            transcodedToWav = false
+        )
     }
 
     private fun resolveMimeType(uri: Uri): String? {
@@ -77,16 +110,22 @@ class SessionMediaPrepareStage(
     }
 
     private fun shouldTranscodeToWav(uri: Uri, mimeType: String?): Boolean {
-        if (mimeType?.startsWith("video/") == true) {
+        val path = uri.path.orEmpty().lowercase()
+        val normalizedMime = mimeType?.lowercase().orEmpty()
+        if (normalizedMime.startsWith("audio/")) {
+            return false
+        }
+        if (normalizedMime.startsWith("video/")) {
             return true
         }
-        val path = uri.path.orEmpty().lowercase()
-        return path.endsWith(".mp4") ||
-            path.endsWith(".m4v") ||
-            path.endsWith(".mov") ||
-            path.endsWith(".mkv") ||
-            path.endsWith(".webm") ||
-            path.endsWith(".3gp")
+        val extension = path.substringAfterLast('.', "")
+        if (extension in AUDIO_EXTENSIONS) {
+            return false
+        }
+        if (extension in VIDEO_EXTENSIONS) {
+            return true
+        }
+        return normalizedMime.isBlank()
     }
 
     private fun decodeAudioTrackToWav(uri: Uri, fallbackPath: String): File {

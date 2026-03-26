@@ -15,7 +15,10 @@ class CreateProjectFromUrlUseCase(
         val normalizedUrl = sourceUrl.trim()
         val resolved = resolvePlatformLinkUseCase(normalizedUrl)
         val resolvedMediaUrl = when (resolved) {
-            is PlatformLinkResolveResult.Success -> resolved.media.resolvedMediaUrl
+            is PlatformLinkResolveResult.Success -> {
+                resolved.media.items.firstOrNull()?.resolvedMediaUrl
+                    ?: throw IllegalArgumentException("No downloadable media was found.")
+            }
             is PlatformLinkResolveResult.Failure -> {
                 throw IllegalArgumentException(resolved.error.message)
             }

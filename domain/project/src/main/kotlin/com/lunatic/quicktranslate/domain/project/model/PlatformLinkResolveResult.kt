@@ -1,8 +1,17 @@
 package com.lunatic.quicktranslate.domain.project.model
 
+data class PlatformLinkResolvedItem(
+    val id: String,
+    val label: String,
+    val resolvedMediaUrl: String,
+    val mimeType: String?,
+    val estimatedBytes: Long?
+)
+
 data class PlatformLinkResolvedMedia(
     val requestUrl: String,
-    val resolvedMediaUrl: String,
+    val suggestedProjectName: String,
+    val items: List<PlatformLinkResolvedItem>,
     val sourceHost: String,
     val isDirectMedia: Boolean
 )
@@ -24,4 +33,3 @@ enum class PlatformLinkResolveFailureType {
     DRM_PROTECTED,
     EXTRACT_FAILED
 }
-

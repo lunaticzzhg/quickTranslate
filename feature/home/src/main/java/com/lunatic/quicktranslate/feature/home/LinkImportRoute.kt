@@ -70,7 +70,7 @@ fun LinkImportRoute(
             style = MaterialTheme.typography.headlineMedium
         )
         Text(
-            text = "Paste an audio/video URL, then continue to import.",
+            text = "Paste an audio/video URL, then continue to import directly.",
             style = MaterialTheme.typography.bodyMedium
         )
         OutlinedTextField(

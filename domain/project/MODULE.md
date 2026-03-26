@@ -27,6 +27,7 @@
 - `PlatformLinkResolveFailureType` 平台链接解析失败分类
 - `CreateProjectUseCase`
 - `CreateProjectFromUrlUseCase`
+- `CreateProjectFromResolvedLinkUseCase`
 - `ResolvePlatformLinkUseCase`
 - `GetProjectByIdUseCase`
 - `ObserveRecentProjectsUseCase`

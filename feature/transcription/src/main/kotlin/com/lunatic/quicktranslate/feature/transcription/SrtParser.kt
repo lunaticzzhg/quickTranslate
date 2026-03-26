@@ -4,7 +4,7 @@ import java.io.File
 
 object SrtParser {
     private val timingPattern = Regex(
-        pattern = "(\\d{2}):(\\d{2}):(\\d{2}),(\\d{3})\\s+-->\\s+(\\d{2}):(\\d{2}):(\\d{2}),(\\d{3})"
+        pattern = "(\\d{2}):(\\d{2}):(\\d{2})[,.](\\d{3})\\s+-->\\s+(\\d{2}):(\\d{2}):(\\d{2})[,.](\\d{3})"
     )
 
     fun parse(file: File): List<TranscriptionSegment> {
@@ -16,10 +16,14 @@ object SrtParser {
             .split(Regex("\\r?\\n\\r?\\n"))
         return blocks.mapNotNull { block ->
             val lines = block.lines().map { it.trim() }.filter { it.isNotBlank() }
-            if (lines.size < 2) {
+            if (lines.isEmpty()) {
                 return@mapNotNull null
             }
-            val timingLine = lines[1]
+            val timingLineIndex = lines.indexOfFirst { timingPattern.containsMatchIn(it) }
+            if (timingLineIndex < 0) {
+                return@mapNotNull null
+            }
+            val timingLine = lines[timingLineIndex]
             val match = timingPattern.find(timingLine) ?: return@mapNotNull null
             val startMs = match.groups.toTimestampMs(
                 hourIdx = 1,
@@ -33,7 +37,9 @@ object SrtParser {
                 secondIdx = 7,
                 millisIdx = 8
             )
-            val text = lines.drop(2).joinToString(separator = " ").trim()
+            val text = lines.drop(timingLineIndex + 1)
+                .joinToString(separator = " ")
+                .trim()
             if (text.isBlank()) {
                 return@mapNotNull null
             }

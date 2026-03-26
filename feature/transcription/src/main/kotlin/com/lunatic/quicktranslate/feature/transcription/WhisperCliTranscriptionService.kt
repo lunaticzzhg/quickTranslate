@@ -45,10 +45,12 @@ class WhisperCliTranscriptionService(
                     "qt_whisper_${mediaFile.nameWithoutExtension}_${System.currentTimeMillis()}"
                 )
                 val outputSrt = File(outputBase.absolutePath + ".srt")
+                val threads = resolveThreadCount(config.threads)
                 val cliArgs = listOf(
                     "-m", config.modelPath,
                     "-f", mediaFile.absolutePath,
                     "-l", config.language,
+                    "-t", threads.toString(),
                     "--print-progress",
                     "-osrt",
                     "-of", outputBase.absolutePath
@@ -151,10 +153,16 @@ class WhisperCliTranscriptionService(
                         onPartialResult?.invoke(segments)
                     }
                     if (segments.isEmpty()) {
+                        val modelName = File(config.modelPath).name
+                        val modelHint = if (modelName.contains(".en", ignoreCase = true)) {
+                            " Current model is English-only ($modelName). Non-English audio may produce empty subtitles."
+                        } else {
+                            ""
+                        }
                         throw IllegalStateException(
                             "Whisper completed but produced no subtitles. " +
                                 "Output file: ${resolvedSrt.absolutePath}. " +
-                                "Logs: ${logs.take(500)}"
+                                "Logs: ${logs.take(500)}.$modelHint"
                         )
                     }
                     onProgress?.invoke(100)
@@ -238,5 +246,14 @@ class WhisperCliTranscriptionService(
                 process.waitFor(300, TimeUnit.MILLISECONDS)
             }
         }
+    }
+
+    private fun resolveThreadCount(configured: Int): Int {
+        if (configured > 0) {
+            return configured
+        }
+        return Runtime.getRuntime()
+            .availableProcessors()
+            .coerceIn(2, 8)
     }
 }

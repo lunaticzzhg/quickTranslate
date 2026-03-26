@@ -32,6 +32,7 @@ val sessionModule = module {
         if (BuildConfig.TRANSCRIPTION_MODE.equals("real", ignoreCase = true)) {
             runCatching {
                 val language = BuildConfig.WHISPER_LANGUAGE.ifBlank { "en" }
+                val threads = BuildConfig.WHISPER_THREADS
                 val config = if (
                     BuildConfig.WHISPER_CLI_PATH.isNotBlank() &&
                     BuildConfig.WHISPER_MODEL_PATH.isNotBlank()
@@ -39,10 +40,11 @@ val sessionModule = module {
                     WhisperCliConfig(
                         cliPath = BuildConfig.WHISPER_CLI_PATH,
                         modelPath = BuildConfig.WHISPER_MODEL_PATH,
-                        language = language
+                        language = language,
+                        threads = threads
                     )
                 } else {
-                    EmbeddedWhisperConfigProvider(androidContext()).resolve(language)
+                    EmbeddedWhisperConfigProvider(androidContext()).resolve(language, threads)
                 }
                 WhisperCliTranscriptionService(
                     config = config

@@ -2,6 +2,7 @@ package com.lunatic.quicktranslate.domain.project.di
 
 import com.lunatic.quicktranslate.domain.project.usecase.CreateProjectUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.CreateProjectFromUrlUseCase
+import com.lunatic.quicktranslate.domain.project.usecase.CreateProjectFromResolvedLinkUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.DeleteProjectUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.BumpProjectTranscodeTaskPriorityUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.EnqueueProjectTranscodeTaskUseCase
@@ -25,6 +26,7 @@ import org.koin.dsl.module
 val projectDomainModule = module {
     factory { CreateProjectUseCase(get()) }
     factory { ResolvePlatformLinkUseCase(get()) }
+    factory { CreateProjectFromResolvedLinkUseCase(get(), get(), get()) }
     factory { GetProjectByIdUseCase(get()) }
     factory { CreateProjectFromUrlUseCase(get(), get(), get(), get()) }
     factory { GetProjectByMediaUriUseCase(get()) }
