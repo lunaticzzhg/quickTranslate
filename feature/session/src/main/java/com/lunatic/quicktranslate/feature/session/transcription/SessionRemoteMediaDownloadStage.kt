@@ -50,4 +50,18 @@ class SessionRemoteMediaDownloadStage(
             }
         }
     }
+
+    companion object {
+        fun create(
+            sourceResolver: SessionRemoteMediaSourceResolver,
+            ytDlpMediaDownloader: SessionYtDlpMediaDownloader,
+            directHttpMediaDownloader: SessionDirectHttpMediaDownloader
+        ): SessionRemoteMediaDownloadStage {
+            return SessionRemoteMediaDownloadStage(
+                sourceResolver = sourceResolver,
+                ytDlpMediaDownloader = ytDlpMediaDownloader,
+                directHttpMediaDownloader = directHttpMediaDownloader
+            )
+        }
+    }
 }

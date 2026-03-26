@@ -5,11 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.lunatic.quicktranslate.domain.project.model.CreateProjectInput
 import com.lunatic.quicktranslate.domain.project.model.Project
 import com.lunatic.quicktranslate.domain.project.model.SubtitleStatus
+import com.lunatic.quicktranslate.domain.project.repository.ProjectRepository
 import com.lunatic.quicktranslate.domain.project.usecase.CreateProjectUseCase
-import com.lunatic.quicktranslate.domain.project.usecase.DeleteProjectUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.EnqueueProjectTranscodeTaskUseCase
-import com.lunatic.quicktranslate.domain.project.usecase.GetProjectByMediaUriUseCase
-import com.lunatic.quicktranslate.domain.project.usecase.ObserveRecentProjectsUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.RestoreAndResumeProjectTranscodeQueueUseCase
 import java.time.Instant
 import java.time.ZoneId
@@ -24,9 +22,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class HomeViewModel(
     private val createProjectUseCase: CreateProjectUseCase,
-    private val getProjectByMediaUriUseCase: GetProjectByMediaUriUseCase,
-    private val deleteProjectUseCase: DeleteProjectUseCase,
-    observeRecentProjectsUseCase: ObserveRecentProjectsUseCase,
+    private val projectRepository: ProjectRepository,
     private val restoreAndResumeProjectTranscodeQueueUseCase: RestoreAndResumeProjectTranscodeQueueUseCase,
     private val enqueueProjectTranscodeTaskUseCase: EnqueueProjectTranscodeTaskUseCase
 ) : ViewModel() {
@@ -39,7 +35,7 @@ class HomeViewModel(
 
     init {
         viewModelScope.launch {
-            observeRecentProjectsUseCase().collect { projects ->
+            projectRepository.observeRecentProjects().collect { projects ->
                 mutableState.value = mutableState.value.copy(
                     recentProjects = projects.map { project ->
                         project.toRecentProjectUi()
@@ -72,7 +68,7 @@ class HomeViewModel(
     private fun createProjectThenNavigate(media: ImportedMedia) {
         viewModelScope.launch {
             val existingProject = runCatching {
-                getProjectByMediaUriUseCase(media.uri)
+                projectRepository.getProjectByMediaUri(media.uri)
             }.getOrNull()
             if (existingProject != null) {
                 runCatching {
@@ -149,7 +145,7 @@ class HomeViewModel(
         val target = mutableState.value.pendingDeletionProject ?: return
         viewModelScope.launch {
             runCatching {
-                deleteProjectUseCase(target.id)
+                projectRepository.deleteProject(target.id)
             }.onFailure {
                 emitEffect(HomeEffect.ShowError("Failed to delete project. Please try again."))
             }

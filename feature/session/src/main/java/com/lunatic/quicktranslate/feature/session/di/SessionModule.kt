@@ -68,20 +68,18 @@ val sessionModule = module {
     factory { SessionLoopController(get(), get()) }
     factory { SessionPlaybackCoordinator(get(), get()) }
     single { OkHttpClient.Builder().build() }
-    factory { SessionRemoteMediaSourceResolver(get()) }
-    factory { SessionDirectHttpMediaDownloader(appContext = androidContext(), okHttpClient = get()) }
-    factory {
-        SessionYtDlpMediaDownloader(
-            appContext = androidContext(),
-            ytDlpCookiesPath = BuildConfig.YTDLP_COOKIES_PATH,
-            ytDlpExtractorArgs = BuildConfig.YTDLP_EXTRACTOR_ARGS
-        )
-    }
     factory {
         SessionRemoteMediaDownloadStage(
-            sourceResolver = get(),
-            ytDlpMediaDownloader = get(),
-            directHttpMediaDownloader = get()
+            sourceResolver = SessionRemoteMediaSourceResolver(get()),
+            ytDlpMediaDownloader = SessionYtDlpMediaDownloader(
+                appContext = androidContext(),
+                ytDlpCookiesPath = BuildConfig.YTDLP_COOKIES_PATH,
+                ytDlpExtractorArgs = BuildConfig.YTDLP_EXTRACTOR_ARGS
+            ),
+            directHttpMediaDownloader = SessionDirectHttpMediaDownloader(
+                appContext = androidContext(),
+                okHttpClient = get()
+            )
         )
     }
     factory { SessionMediaPrepareStage(androidContext()) }
@@ -94,17 +92,13 @@ val sessionModule = module {
             persistStage = get()
         )
     }
-    factory { SessionMarkResolvingStep() }
-    factory { SessionEnsureLocalMediaStep(get()) }
-    factory { SessionSyncProjectMediaSourceStep(get()) }
-    factory { SessionTranscribeStep(get()) }
     factory {
         SessionProjectTranscodeChain(
             steps = listOf(
-                get<SessionMarkResolvingStep>(),
-                get<SessionEnsureLocalMediaStep>(),
-                get<SessionSyncProjectMediaSourceStep>(),
-                get<SessionTranscribeStep>()
+                SessionMarkResolvingStep(),
+                SessionEnsureLocalMediaStep(get()),
+                SessionSyncProjectMediaSourceStep(get()),
+                SessionTranscribeStep(get())
             )
         )
     }

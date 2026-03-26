@@ -5,9 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTaskStatus
 import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTaskStage
+import com.lunatic.quicktranslate.domain.project.repository.ProjectRepository
 import com.lunatic.quicktranslate.domain.project.usecase.BumpProjectTranscodeTaskPriorityUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.EnqueueProjectTranscodeTaskUseCase
-import com.lunatic.quicktranslate.domain.project.usecase.GetProjectByIdUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.ObserveProjectTranscodeTaskUseCase
 import com.lunatic.quicktranslate.feature.session.loop.SessionLoopController
 import com.lunatic.quicktranslate.feature.session.playback.SessionPlaybackCoordinator
@@ -32,7 +32,7 @@ class SessionViewModel(
     private val transcriptionCoordinator: SessionTranscriptionCoordinator,
     private val loopController: SessionLoopController,
     private val playbackCoordinator: SessionPlaybackCoordinator,
-    private val getProjectByIdUseCase: GetProjectByIdUseCase,
+    private val projectRepository: ProjectRepository,
     private val enqueueProjectTranscodeTaskUseCase: EnqueueProjectTranscodeTaskUseCase,
     private val bumpProjectTranscodeTaskPriorityUseCase: BumpProjectTranscodeTaskPriorityUseCase,
     private val observeProjectTranscodeTaskUseCase: ObserveProjectTranscodeTaskUseCase
@@ -287,7 +287,7 @@ class SessionViewModel(
         }
         stopLoop()
         hasAutoStartedPlaybackForCurrentTranscription = false
-        val latestMediaUri = getProjectByIdUseCase(projectId)?.mediaUri
+        val latestMediaUri = projectRepository.getProjectById(projectId)?.mediaUri
             ?.takeIf { it.isNotBlank() }
             ?: importedMedia.uri
         enqueueProjectTranscodeTaskUseCase(

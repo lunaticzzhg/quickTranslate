@@ -6,7 +6,7 @@ import com.lunatic.quicktranslate.domain.project.model.Project
 import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTask
 import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTaskStage
 import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTaskStatus
-import com.lunatic.quicktranslate.domain.project.usecase.ObserveRecentProjectsUseCase
+import com.lunatic.quicktranslate.domain.project.repository.ProjectRepository
 import com.lunatic.quicktranslate.domain.project.usecase.ObserveTranscodeDashboardTasksUseCase
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 
 class TranscodeTasksViewModel(
     observeTranscodeDashboardTasksUseCase: ObserveTranscodeDashboardTasksUseCase,
-    observeRecentProjectsUseCase: ObserveRecentProjectsUseCase
+    projectRepository: ProjectRepository
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(TranscodeTasksState())
     val state: StateFlow<TranscodeTasksState> = mutableState.asStateFlow()
@@ -31,7 +31,7 @@ class TranscodeTasksViewModel(
 
     init {
         viewModelScope.launch {
-            observeRecentProjectsUseCase().collect { projects ->
+            projectRepository.observeRecentProjects().collect { projects ->
                 projectsById = projects.associateBy { it.id }
                 rebuildTaskList(latestTasks)
             }

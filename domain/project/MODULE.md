@@ -29,9 +29,6 @@
 - `CreateProjectFromUrlUseCase`
 - `CreateProjectFromResolvedLinkUseCase`
 - `ResolvePlatformLinkUseCase`
-- `GetProjectByIdUseCase`
-- `ObserveRecentProjectsUseCase`
-- `DeleteProjectUseCase`
 - `UpdateProjectSubtitleStatusUseCase`
 - `UpdateProjectMediaSourceUseCase`
 - `GetProjectPlaybackPositionUseCase`

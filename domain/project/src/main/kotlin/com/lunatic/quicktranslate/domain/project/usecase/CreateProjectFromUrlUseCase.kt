@@ -3,11 +3,12 @@ package com.lunatic.quicktranslate.domain.project.usecase
 import com.lunatic.quicktranslate.domain.project.model.CreateProjectInput
 import com.lunatic.quicktranslate.domain.project.model.PlatformLinkResolveResult
 import com.lunatic.quicktranslate.domain.project.model.Project
+import com.lunatic.quicktranslate.domain.project.repository.ProjectRepository
 import java.net.URI
 
 class CreateProjectFromUrlUseCase(
     private val resolvePlatformLinkUseCase: ResolvePlatformLinkUseCase,
-    private val getProjectByMediaUriUseCase: GetProjectByMediaUriUseCase,
+    private val projectRepository: ProjectRepository,
     private val createProjectUseCase: CreateProjectUseCase,
     private val enqueueProjectTranscodeTaskUseCase: EnqueueProjectTranscodeTaskUseCase
 ) {
@@ -24,7 +25,7 @@ class CreateProjectFromUrlUseCase(
             }
         }
 
-        getProjectByMediaUriUseCase(resolvedMediaUrl)?.let { existing ->
+        projectRepository.getProjectByMediaUri(resolvedMediaUrl)?.let { existing ->
             enqueueProjectTranscodeTaskUseCase(
                 projectId = existing.id,
                 mediaUri = resolvedMediaUrl
