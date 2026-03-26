@@ -22,6 +22,7 @@ data class TranscodeTaskUi(
 sealed interface TranscodeTasksIntent {
     data object BackClicked : TranscodeTasksIntent
     data class TaskClicked(val task: TranscodeTaskUi) : TranscodeTasksIntent
+    data class DeleteTaskClicked(val taskId: Long) : TranscodeTasksIntent
 }
 
 sealed interface TranscodeTasksEffect {

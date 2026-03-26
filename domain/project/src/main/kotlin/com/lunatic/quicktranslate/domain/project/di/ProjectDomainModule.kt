@@ -3,6 +3,8 @@ package com.lunatic.quicktranslate.domain.project.di
 import com.lunatic.quicktranslate.domain.project.usecase.CreateProjectUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.CreateProjectFromUrlUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.CreateProjectFromResolvedLinkUseCase
+import com.lunatic.quicktranslate.domain.project.usecase.CancelProjectTranscodeTaskByProjectUseCase
+import com.lunatic.quicktranslate.domain.project.usecase.CancelProjectTranscodeTaskUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.BumpProjectTranscodeTaskPriorityUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.EnqueueProjectTranscodeTaskUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.GetProjectLoopConfigUseCase
@@ -34,6 +36,8 @@ val projectDomainModule = module {
     factory { SaveProjectLoopConfigUseCase(get()) }
     factory { EnqueueProjectTranscodeTaskUseCase(get(), get()) }
     factory { BumpProjectTranscodeTaskPriorityUseCase(get(), get()) }
+    factory { CancelProjectTranscodeTaskUseCase(get()) }
+    factory { CancelProjectTranscodeTaskByProjectUseCase(get()) }
     factory { ObserveProjectTranscodeTaskUseCase(get()) }
     factory { ObserveTranscodeDashboardTasksUseCase(get()) }
     factory { RestoreAndResumeProjectTranscodeQueueUseCase(get()) }

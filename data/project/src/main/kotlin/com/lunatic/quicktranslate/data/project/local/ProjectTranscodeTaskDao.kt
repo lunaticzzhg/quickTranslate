@@ -139,6 +139,7 @@ interface ProjectTranscodeTaskDao {
             finishedAtEpochMs = :finishedAtEpochMs,
             updatedAtEpochMs = :finishedAtEpochMs
         WHERE id = :taskId
+          AND status = 'RUNNING'
         """
     )
     suspend fun markSucceeded(taskId: Long, finishedAtEpochMs: Long)
@@ -152,9 +153,46 @@ interface ProjectTranscodeTaskDao {
             finishedAtEpochMs = :finishedAtEpochMs,
             updatedAtEpochMs = :finishedAtEpochMs
         WHERE id = :taskId
+          AND status = 'RUNNING'
         """
     )
     suspend fun markFailed(taskId: Long, errorMessage: String?, finishedAtEpochMs: Long)
+
+    @Query(
+        """
+        UPDATE project_transcode_tasks
+        SET status = 'CANCELED',
+            stage = 'CANCELED',
+            errorMessage = NULL,
+            finishedAtEpochMs = :updatedAtEpochMs,
+            updatedAtEpochMs = :updatedAtEpochMs
+        WHERE id = :taskId
+          AND status IN ('PENDING', 'RUNNING', 'FAILED')
+        """
+    )
+    suspend fun cancelTask(taskId: Long, updatedAtEpochMs: Long): Int
+
+    @Query(
+        """
+        UPDATE project_transcode_tasks
+        SET status = 'CANCELED',
+            stage = 'CANCELED',
+            errorMessage = NULL,
+            finishedAtEpochMs = :updatedAtEpochMs,
+            updatedAtEpochMs = :updatedAtEpochMs
+        WHERE projectId = :projectId
+          AND taskType = :taskType
+          AND status IN ('PENDING', 'RUNNING', 'FAILED')
+        """
+    )
+    suspend fun cancelTaskByProject(
+        projectId: Long,
+        taskType: String,
+        updatedAtEpochMs: Long
+    ): Int
+
+    @Query("SELECT status FROM project_transcode_tasks WHERE id = :taskId LIMIT 1")
+    suspend fun getStatusById(taskId: Long): String?
 
     @Query(
         """

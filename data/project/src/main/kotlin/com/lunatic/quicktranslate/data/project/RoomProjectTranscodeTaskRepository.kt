@@ -94,6 +94,27 @@ class RoomProjectTranscodeTaskRepository(
         )
     }
 
+    override suspend fun cancelTask(taskId: Long): Boolean {
+        val updated = transcodeTaskDao.cancelTask(
+            taskId = taskId,
+            updatedAtEpochMs = System.currentTimeMillis()
+        )
+        return updated > 0
+    }
+
+    override suspend fun cancelTaskByProject(projectId: Long, taskType: String): Boolean {
+        val updated = transcodeTaskDao.cancelTaskByProject(
+            projectId = projectId,
+            taskType = taskType,
+            updatedAtEpochMs = System.currentTimeMillis()
+        )
+        return updated > 0
+    }
+
+    override suspend fun isTaskCanceled(taskId: Long): Boolean {
+        return transcodeTaskDao.getStatusById(taskId) == ProjectTranscodeTaskStatus.CANCELED.name
+    }
+
     override suspend fun updateRunningTaskProgress(
         taskId: Long,
         stage: ProjectTranscodeTaskStage,

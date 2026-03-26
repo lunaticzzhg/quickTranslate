@@ -53,6 +53,7 @@ class SessionYtDlpMediaDownloader(
             outputDirectory = outputDirectory,
             outputTemplate = outputTemplate,
             formatOption = "bestaudio/best",
+            sortOption = "+size,+br",
             useYouTubeHeaders = false,
             onProgress = onProgress
         )
@@ -63,6 +64,7 @@ class SessionYtDlpMediaDownloader(
         outputDirectory: File,
         outputTemplate: String,
         formatOption: String,
+        sortOption: String? = null,
         useYouTubeHeaders: Boolean,
         onProgress: ((Int) -> Unit)?
     ): DownloadedTranscriptionMedia {
@@ -71,6 +73,9 @@ class SessionYtDlpMediaDownloader(
             addOption("--no-playlist")
             addOption("--no-warnings")
             addOption("-f", formatOption)
+            if (!sortOption.isNullOrBlank()) {
+                addOption("-S", sortOption)
+            }
             addOption("--print", "after_move:filepath")
             addOption("-o", outputTemplate)
             if (useYouTubeHeaders) {

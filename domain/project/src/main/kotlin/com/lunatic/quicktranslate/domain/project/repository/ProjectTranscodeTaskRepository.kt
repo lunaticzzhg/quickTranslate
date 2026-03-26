@@ -22,6 +22,15 @@ interface ProjectTranscodeTaskRepository {
 
     suspend fun markTaskFailed(taskId: Long, message: String?, finishedAtEpochMs: Long)
 
+    suspend fun cancelTask(taskId: Long): Boolean
+
+    suspend fun cancelTaskByProject(
+        projectId: Long,
+        taskType: String
+    ): Boolean
+
+    suspend fun isTaskCanceled(taskId: Long): Boolean
+
     suspend fun updateRunningTaskProgress(
         taskId: Long,
         stage: ProjectTranscodeTaskStage,

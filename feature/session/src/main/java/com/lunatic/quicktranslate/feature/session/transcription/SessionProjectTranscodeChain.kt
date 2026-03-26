@@ -4,6 +4,13 @@ import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTask
 import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTaskStage
 import com.lunatic.quicktranslate.domain.project.repository.ProjectTranscodeTaskRepository
 import com.lunatic.quicktranslate.domain.project.usecase.UpdateProjectMediaSourceUseCase
+import java.util.concurrent.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 class SessionProjectTranscodeChain(
     private val steps: List<SessionProjectTranscodeStep>
@@ -33,6 +40,21 @@ class SessionProjectTranscodeContext(
     private val transcodeTaskRepository: ProjectTranscodeTaskRepository
 ) {
     var localMedia: DownloadedTranscriptionMedia? = null
+    private val progressScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Volatile
+    private var canceledSnapshot: Boolean = false
+
+    init {
+        progressScope.launch {
+            while (isActive) {
+                canceledSnapshot = transcodeTaskRepository.isTaskCanceled(task.id)
+                if (canceledSnapshot) {
+                    break
+                }
+                delay(500L)
+            }
+        }
+    }
 
     suspend fun updateProgress(stage: ProjectTranscodeTaskStage, progress: Int?) {
         transcodeTaskRepository.updateRunningTaskProgress(
@@ -41,6 +63,31 @@ class SessionProjectTranscodeContext(
             progress = toOverallProgress(stage, progress)
         )
     }
+
+    fun updateProgressAsync(stage: ProjectTranscodeTaskStage, progress: Int?) {
+        if (canceledSnapshot) {
+            return
+        }
+        progressScope.launch {
+            transcodeTaskRepository.updateRunningTaskProgress(
+                taskId = task.id,
+                stage = stage,
+                progress = toOverallProgress(stage, progress)
+            )
+        }
+    }
+
+    suspend fun refreshCanceledState() {
+        canceledSnapshot = transcodeTaskRepository.isTaskCanceled(task.id)
+    }
+
+    fun ensureNotCanceled() {
+        if (canceledSnapshot) {
+            throw CancellationException("Task ${task.id} was canceled.")
+        }
+    }
+
+    fun isCanceled(): Boolean = canceledSnapshot
 
     private fun toOverallProgress(stage: ProjectTranscodeTaskStage, stageProgress: Int?): Int? {
         val bounded = stageProgress?.coerceIn(0, 100)
@@ -65,6 +112,8 @@ class SessionMarkResolvingStep : SessionProjectTranscodeStep {
     override val order: Int = 100
 
     override suspend fun execute(context: SessionProjectTranscodeContext) {
+        context.refreshCanceledState()
+        context.ensureNotCanceled()
         context.updateProgress(
             stage = ProjectTranscodeTaskStage.RESOLVING,
             progress = 0
@@ -78,14 +127,27 @@ class SessionEnsureLocalMediaStep(
     override val order: Int = 200
 
     override suspend fun execute(context: SessionProjectTranscodeContext) {
+        context.refreshCanceledState()
+        context.ensureNotCanceled()
         context.updateProgress(
             stage = ProjectTranscodeTaskStage.DOWNLOADING,
             progress = 0
         )
         context.localMedia = downloadStage.ensureLocalMedia(
             projectId = context.task.projectId,
-            mediaUri = context.task.mediaUri
+            mediaUri = context.task.mediaUri,
+            onProgress = progress@{ progress ->
+                if (context.isCanceled()) {
+                    return@progress
+                }
+                context.updateProgressAsync(
+                    stage = ProjectTranscodeTaskStage.DOWNLOADING,
+                    progress = progress
+                )
+            }
         )
+        context.refreshCanceledState()
+        context.ensureNotCanceled()
     }
 }
 
@@ -95,6 +157,8 @@ class SessionSyncProjectMediaSourceStep(
     override val order: Int = 300
 
     override suspend fun execute(context: SessionProjectTranscodeContext) {
+        context.refreshCanceledState()
+        context.ensureNotCanceled()
         val localMedia = context.localMedia
             ?: error("Local media is missing before project media source sync step.")
         if (!localMedia.downloadedFromRemote) {
@@ -118,6 +182,8 @@ class SessionTranscribeStep(
     override val order: Int = 400
 
     override suspend fun execute(context: SessionProjectTranscodeContext) {
+        context.refreshCanceledState()
+        context.ensureNotCanceled()
         val localMedia = context.localMedia
             ?: error("Local media is missing before transcription step.")
         context.updateProgress(
@@ -127,7 +193,17 @@ class SessionTranscribeStep(
         pipeline.run(
             projectId = context.task.projectId,
             mediaUri = localMedia.localPath,
-            onProgress = null
+            onProgress = progress@{ progress ->
+                if (context.isCanceled()) {
+                    return@progress
+                }
+                context.updateProgressAsync(
+                    stage = ProjectTranscodeTaskStage.TRANSCRIBING,
+                    progress = progress
+                )
+            }
         ).getOrThrow()
+        context.refreshCanceledState()
+        context.ensureNotCanceled()
     }
 }

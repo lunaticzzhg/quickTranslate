@@ -7,6 +7,7 @@ import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTask
 import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTaskStage
 import com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTaskStatus
 import com.lunatic.quicktranslate.domain.project.repository.ProjectRepository
+import com.lunatic.quicktranslate.domain.project.usecase.CancelProjectTranscodeTaskUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.ObserveTranscodeDashboardTasksUseCase
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +19,8 @@ import kotlinx.coroutines.launch
 
 class TranscodeTasksViewModel(
     observeTranscodeDashboardTasksUseCase: ObserveTranscodeDashboardTasksUseCase,
-    projectRepository: ProjectRepository
+    projectRepository: ProjectRepository,
+    private val cancelProjectTranscodeTaskUseCase: CancelProjectTranscodeTaskUseCase
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(TranscodeTasksState())
     val state: StateFlow<TranscodeTasksState> = mutableState.asStateFlow()
@@ -59,6 +61,11 @@ class TranscodeTasksViewModel(
                         )
                     )
                 )
+            }
+            is TranscodeTasksIntent.DeleteTaskClicked -> {
+                viewModelScope.launch {
+                    cancelProjectTranscodeTaskUseCase(intent.taskId)
+                }
             }
         }
     }

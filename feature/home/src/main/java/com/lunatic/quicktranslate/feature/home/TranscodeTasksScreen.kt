@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -55,10 +56,22 @@ fun TranscodeTasksScreen(
                     onClick = { onIntent(TranscodeTasksIntent.TaskClicked(task)) }
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            text = task.projectName,
-                            style = MaterialTheme.typography.titleMedium
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = task.projectName,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Button(
+                                onClick = {
+                                    onIntent(TranscodeTasksIntent.DeleteTaskClicked(task.taskId))
+                                }
+                            ) {
+                                Text(text = "Delete")
+                            }
+                        }
                         Text(
                             text = "Status: ${task.statusLabel}",
                             modifier = Modifier.padding(top = 4.dp),

@@ -7,6 +7,7 @@ import com.lunatic.quicktranslate.domain.project.model.CreateProjectInput
 import com.lunatic.quicktranslate.domain.project.model.Project
 import com.lunatic.quicktranslate.domain.project.model.SubtitleStatus
 import com.lunatic.quicktranslate.domain.project.repository.ProjectRepository
+import com.lunatic.quicktranslate.domain.project.usecase.CancelProjectTranscodeTaskByProjectUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.CreateProjectUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.EnqueueProjectTranscodeTaskUseCase
 import com.lunatic.quicktranslate.domain.project.usecase.RestoreAndResumeProjectTranscodeQueueUseCase
@@ -25,7 +26,8 @@ class HomeViewModel(
     private val createProjectUseCase: CreateProjectUseCase,
     private val projectRepository: ProjectRepository,
     private val restoreAndResumeProjectTranscodeQueueUseCase: RestoreAndResumeProjectTranscodeQueueUseCase,
-    private val enqueueProjectTranscodeTaskUseCase: EnqueueProjectTranscodeTaskUseCase
+    private val enqueueProjectTranscodeTaskUseCase: EnqueueProjectTranscodeTaskUseCase,
+    private val cancelProjectTranscodeTaskByProjectUseCase: CancelProjectTranscodeTaskByProjectUseCase
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(HomeState())
     val state: StateFlow<HomeState> = mutableState.asStateFlow()
@@ -142,6 +144,7 @@ class HomeViewModel(
         val target = mutableState.value.pendingDeletionProject ?: return
         viewModelScope.launch {
             runCatching {
+                cancelProjectTranscodeTaskByProjectUseCase(target.id)
                 projectRepository.deleteProject(target.id)
             }.onFailure {
                 emitEffect(HomeEffect.ShowError("Failed to delete project. Please try again."))
