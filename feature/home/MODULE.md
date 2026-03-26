@@ -8,6 +8,7 @@
 
 - `HomeRoute`、`HomeScreen`
 - `LinkImportRoute`（链接导入页，URL 输入/校验）
+- `LinkImportViewModel`（链接导入提交：创建项目 + 入队）
 - `HomeState` / `HomeIntent` / `HomeEffect`
 - `HomeViewModel`
 - `di/HomeModule.kt`（Koin 注入定义）

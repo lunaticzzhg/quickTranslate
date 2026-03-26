@@ -8,6 +8,7 @@ import com.lunatic.quicktranslate.feature.session.playback.SessionPlaybackCoordi
 import com.lunatic.quicktranslate.feature.session.transcription.EmbeddedWhisperConfigProvider
 import com.lunatic.quicktranslate.feature.session.transcription.SessionTranscriptionCoordinator
 import com.lunatic.quicktranslate.feature.session.transcription.SessionMediaPrepareStage
+import com.lunatic.quicktranslate.feature.session.transcription.SessionRemoteMediaDownloadStage
 import com.lunatic.quicktranslate.feature.session.transcription.SessionProjectTranscodeTaskExecutor
 import com.lunatic.quicktranslate.feature.session.transcription.SessionSubtitlePersistStage
 import com.lunatic.quicktranslate.feature.session.transcription.SessionTranscriptionExecuteStage
@@ -18,6 +19,7 @@ import com.lunatic.quicktranslate.feature.transcription.TranscriptionService
 import com.lunatic.quicktranslate.feature.transcription.WhisperCliConfig
 import com.lunatic.quicktranslate.feature.transcription.WhisperCliTranscriptionService
 import com.lunatic.quicktranslate.player.core.di.playerModule
+import okhttp3.OkHttpClient
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
@@ -55,6 +57,8 @@ val sessionModule = module {
     }
     factory { SessionLoopController(get(), get()) }
     factory { SessionPlaybackCoordinator(get(), get()) }
+    single { OkHttpClient.Builder().build() }
+    factory { SessionRemoteMediaDownloadStage(androidContext(), get()) }
     factory { SessionMediaPrepareStage(androidContext()) }
     factory { SessionTranscriptionExecuteStage(get()) }
     factory { SessionSubtitlePersistStage(get(), get()) }
@@ -65,7 +69,7 @@ val sessionModule = module {
             persistStage = get()
         )
     }
-    factory<ProjectTranscodeTaskExecutor> { SessionProjectTranscodeTaskExecutor(get()) }
+    factory<ProjectTranscodeTaskExecutor> { SessionProjectTranscodeTaskExecutor(get(), get(), get()) }
     factory { SessionTranscriptionCoordinator(get(), get()) }
     viewModelOf(::SessionViewModel)
 }

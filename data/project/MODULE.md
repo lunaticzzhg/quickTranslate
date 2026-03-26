@@ -20,6 +20,7 @@
 - `SubtitleStatusMapper`、`ProjectMapper`、`ProjectSubtitleMapper`、`ProjectLoopConfigMapper`
 - `di/ProjectDataModule.kt`
 - 支持项目字幕状态回写（`subtitleStatus` + `updatedAtEpochMs`）
+- 支持项目媒体源回写（远程链接转为本地文件路径）
 - 支持最近播放位置持久化（独立播放状态表）
 - 支持按项目持久化字幕列表并替换更新
 - 支持按项目持久化循环配置（选区起止 + 次数选项）

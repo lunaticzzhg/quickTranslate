@@ -12,6 +12,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -20,17 +21,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun LinkImportRoute(
     initialUrl: String,
     onNavigateBack: () -> Unit,
-    onSubmitUrl: (String) -> Unit
+    onNavigateToSession: (Long, ImportedMedia) -> Unit,
+    viewModel: LinkImportViewModel = koinViewModel()
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     var inputUrl by rememberSaveable { mutableStateOf(initialUrl) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(viewModel) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                is LinkImportEffect.NavigateToSession -> onNavigateToSession(
+                    effect.projectId,
+                    effect.media
+                )
+                is LinkImportEffect.ShowError -> {
+                    Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     fun submit() {
         val normalized = inputUrl.trim()
@@ -39,13 +56,7 @@ fun LinkImportRoute(
             return
         }
         errorMessage = null
-        onSubmitUrl(normalized)
-        Toast.makeText(
-            context,
-            "Link accepted. Import execution will be connected in next task.",
-            Toast.LENGTH_SHORT
-        ).show()
-        onNavigateBack()
+        viewModel.submitUrl(normalized)
     }
 
     Column(

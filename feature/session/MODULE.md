@@ -14,6 +14,7 @@
 - `transcription/SessionTranscriptionCoordinator`（转写与字幕恢复拆分）
 - `transcription/SessionTranscriptionPipeline`（按阶段执行转写：媒体准备 -> 转写执行 -> 字幕持久化）
 - `transcription/SessionMediaPrepareStage`（媒体准备阶段）
+- `transcription/SessionRemoteMediaDownloadStage`（远程媒体下载并落地本地文件）
 - `transcription/SessionTranscriptionExecuteStage`（转写执行阶段）
 - `transcription/SessionSubtitlePersistStage`（字幕持久化阶段）
 - `transcription/SessionProjectTranscodeTaskExecutor`（队列任务执行器，桥接到转写 pipeline）
@@ -28,6 +29,8 @@
 - 转写状态回写项目记录（用于首页状态联动）
 - 学习页重进时优先恢复已落库字幕，避免重复触发 mock 转写
 - 学习页通过“转码任务队列”触发转写（入队+提权+状态观察），而非页面内直接长任务执行
+- 队列任务执行时，对 `http/https` 媒体先下载到本地项目目录，再执行转写
+- 学习页重试转写时优先读取项目最新 `mediaUri` 入队（下载后走本地路径）
 - 循环配置持久化（选区与循环次数）并在重进时恢复
 - 最近播放位置恢复（进入学习页自动 seek）与退出时保存
 

@@ -15,4 +15,9 @@ interface ProjectRepository {
         projectId: Long,
         status: SubtitleStatus
     )
+    suspend fun updateProjectMediaSource(
+        projectId: Long,
+        mediaUri: String,
+        mimeType: String
+    )
 }

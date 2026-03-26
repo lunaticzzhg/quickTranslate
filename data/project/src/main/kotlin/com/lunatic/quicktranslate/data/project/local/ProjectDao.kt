@@ -31,4 +31,14 @@ interface ProjectDao {
         subtitleStatus: String,
         updatedAtEpochMs: Long
     )
+
+    @Query(
+        "UPDATE projects SET mediaUri = :mediaUri, mimeType = :mimeType, updatedAtEpochMs = :updatedAtEpochMs WHERE id = :id"
+    )
+    suspend fun updateMediaSource(
+        id: Long,
+        mediaUri: String,
+        mimeType: String,
+        updatedAtEpochMs: Long
+    )
 }

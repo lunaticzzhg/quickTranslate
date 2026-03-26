@@ -70,7 +70,19 @@ fun AppNavHost(sharedUrl: String? = null) {
             LinkImportRoute(
                 initialUrl = initialUrl,
                 onNavigateBack = { navController.popBackStack() },
-                onSubmitUrl = {}
+                onNavigateToSession = { projectId, media ->
+                    navController.navigate(
+                        SessionNav.createRoute(
+                            ImportedSessionMedia(
+                                projectId = projectId,
+                                uri = media.uri,
+                                displayName = media.displayName,
+                                mimeType = media.mimeType,
+                                durationMs = media.durationMs
+                            )
+                        )
+                    )
+                }
             )
         }
 

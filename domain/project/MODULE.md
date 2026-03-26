@@ -22,9 +22,12 @@
 - `ProjectTranscodeQueueEngine` 转码队列引擎接口
 - `ProjectTranscodeTaskExecutor` 转码任务执行器接口
 - `CreateProjectUseCase`
+- `CreateProjectFromUrlUseCase`
+- `GetProjectByIdUseCase`
 - `ObserveRecentProjectsUseCase`
 - `DeleteProjectUseCase`
 - `UpdateProjectSubtitleStatusUseCase`
+- `UpdateProjectMediaSourceUseCase`
 - `GetProjectPlaybackPositionUseCase`
 - `UpdateProjectPlaybackPositionUseCase`
 - `GetProjectSubtitlesUseCase`

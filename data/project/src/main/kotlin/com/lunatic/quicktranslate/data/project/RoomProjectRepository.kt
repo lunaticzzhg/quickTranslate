@@ -58,4 +58,17 @@ class RoomProjectRepository(
             updatedAtEpochMs = System.currentTimeMillis()
         )
     }
+
+    override suspend fun updateProjectMediaSource(
+        projectId: Long,
+        mediaUri: String,
+        mimeType: String
+    ) {
+        projectDao.updateMediaSource(
+            id = projectId,
+            mediaUri = mediaUri,
+            mimeType = mimeType,
+            updatedAtEpochMs = System.currentTimeMillis()
+        )
+    }
 }

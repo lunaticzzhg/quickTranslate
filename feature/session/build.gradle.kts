@@ -83,6 +83,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.media3.common)
     implementation(libs.androidx.media3.ui)
+    implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.koin.androidx.compose)
 }
