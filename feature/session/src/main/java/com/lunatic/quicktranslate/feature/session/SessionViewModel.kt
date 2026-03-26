@@ -357,7 +357,8 @@ class SessionViewModel(
                         mutableState.value = mutableState.value.copy(
                             transcodeStage = task.stage,
                             transcriptionStatus = TranscriptionStatus.QUEUED,
-                            transcriptionProgress = null
+                            transcriptionProgress = null,
+                            transcriptionEtaLabel = null
                         )
                     }
 
@@ -366,6 +367,7 @@ class SessionViewModel(
                             transcodeStage = task.stage,
                             transcriptionStatus = TranscriptionStatus.PROCESSING,
                             transcriptionProgress = task.progress,
+                            transcriptionEtaLabel = task.toEtaLabel(),
                             transcriptionError = null
                         )
                     }
@@ -377,6 +379,7 @@ class SessionViewModel(
                                 transcodeStage = task.stage,
                                 transcriptionStatus = TranscriptionStatus.FAILED,
                                 transcriptionProgress = null,
+                                transcriptionEtaLabel = null,
                                 transcriptionError = "Transcription finished, but no usable subtitles were detected."
                             )
                         }
@@ -387,6 +390,7 @@ class SessionViewModel(
                             transcodeStage = task.stage,
                             transcriptionStatus = TranscriptionStatus.FAILED,
                             transcriptionProgress = null,
+                            transcriptionEtaLabel = null,
                             transcriptionError = task.errorMessage
                                 ?: task.stage.toFailureMessage()
                         )
@@ -397,12 +401,38 @@ class SessionViewModel(
                             transcodeStage = task.stage,
                             transcriptionStatus = TranscriptionStatus.FAILED,
                             transcriptionProgress = null,
+                            transcriptionEtaLabel = null,
                             transcriptionError = "Transcription was canceled."
                         )
                     }
                 }
             }
         }
+    }
+
+    private fun com.lunatic.quicktranslate.domain.project.model.ProjectTranscodeTask.toEtaLabel(): String? {
+        val startedAt = startedAtEpochMs ?: return null
+        val value = progress?.coerceIn(0, 100) ?: return null
+        if (value <= 0 || value >= 100) {
+            return null
+        }
+        val elapsedMs = (System.currentTimeMillis() - startedAt).coerceAtLeast(0L)
+        if (elapsedMs < 1_000L) {
+            return null
+        }
+        val totalEstimateMs = (elapsedMs * 100L) / value
+        val remainingMs = (totalEstimateMs - elapsedMs).coerceAtLeast(0L)
+        if (remainingMs <= 0L) {
+            return null
+        }
+        return "ETA ${formatEta(remainingMs)}"
+    }
+
+    private fun formatEta(valueMs: Long): String {
+        val totalSeconds = (valueMs / 1000L).coerceAtLeast(0L)
+        val minutes = totalSeconds / 60L
+        val seconds = totalSeconds % 60L
+        return "%02d:%02d".format(minutes, seconds)
     }
 
     private fun autoStartPlaybackIfNeeded(subtitles: List<SubtitleSegment>) {

@@ -83,7 +83,8 @@ fun SessionScreen(
                 text = transcriptionStatusLabel(
                     status = state.transcriptionStatus,
                     stage = state.transcodeStage,
-                    progress = state.transcriptionProgress
+                    progress = state.transcriptionProgress,
+                    etaLabel = state.transcriptionEtaLabel
                 ),
                 style = MaterialTheme.typography.bodySmall,
                 color = if (state.transcriptionStatus == TranscriptionStatus.FAILED) {
@@ -406,7 +407,8 @@ private fun EmptyTranscriptionGuidanceCard(
 private fun transcriptionStatusLabel(
     status: TranscriptionStatus,
     stage: ProjectTranscodeTaskStage?,
-    progress: Int?
+    progress: Int?,
+    etaLabel: String?
 ): String {
     return when (status) {
         TranscriptionStatus.IDLE -> "Transcription: idle"
@@ -417,7 +419,12 @@ private fun transcriptionStatusLabel(
         TranscriptionStatus.PROCESSING -> {
             val value = progress?.coerceIn(0, 100)
             val stageText = stage?.toStageDisplayName() ?: "Processing"
-            if (value != null) "Task: $stageText · $value%" else "Task: $stageText"
+            when {
+                value != null && !etaLabel.isNullOrBlank() -> "Task: $stageText · $value% · $etaLabel"
+                value != null -> "Task: $stageText · $value%"
+                !etaLabel.isNullOrBlank() -> "Task: $stageText · $etaLabel"
+                else -> "Task: $stageText"
+            }
         }
         TranscriptionStatus.SUCCESS -> "Transcription: ready"
         TranscriptionStatus.FAILED -> "Transcription: failed"

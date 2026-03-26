@@ -15,6 +15,7 @@ data class TranscodeTaskUi(
     val statusLabel: String,
     val stageLabel: String,
     val progressLabel: String?,
+    val etaLabel: String?,
     val isFailed: Boolean,
     val errorMessage: String?
 )

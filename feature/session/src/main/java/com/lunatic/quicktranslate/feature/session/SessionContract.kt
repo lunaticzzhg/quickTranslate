@@ -36,6 +36,7 @@ data class SessionState(
     val transcodeStage: ProjectTranscodeTaskStage? = null,
     val transcriptionStatus: TranscriptionStatus = TranscriptionStatus.IDLE,
     val transcriptionProgress: Int? = null,
+    val transcriptionEtaLabel: String? = null,
     val transcriptionError: String? = null
 )
 

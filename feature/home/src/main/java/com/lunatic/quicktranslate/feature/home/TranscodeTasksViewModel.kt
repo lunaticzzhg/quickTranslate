@@ -107,9 +107,38 @@ class TranscodeTasksViewModel(
             statusLabel = status.toStatusLabel(),
             stageLabel = stage.toStageLabel(),
             progressLabel = progress?.let { "$it%" },
+            etaLabel = toEtaLabel(),
             isFailed = status == ProjectTranscodeTaskStatus.FAILED,
             errorMessage = errorMessage
         )
+    }
+
+    private fun ProjectTranscodeTask.toEtaLabel(): String? {
+        if (status != ProjectTranscodeTaskStatus.RUNNING) {
+            return null
+        }
+        val startedAt = startedAtEpochMs ?: return null
+        val value = progress?.coerceIn(0, 100) ?: return null
+        if (value <= 0 || value >= 100) {
+            return null
+        }
+        val elapsedMs = (System.currentTimeMillis() - startedAt).coerceAtLeast(0L)
+        if (elapsedMs < 1_000L) {
+            return null
+        }
+        val totalEstimateMs = (elapsedMs * 100L) / value
+        val remainingMs = (totalEstimateMs - elapsedMs).coerceAtLeast(0L)
+        if (remainingMs <= 0L) {
+            return null
+        }
+        return "ETA ${formatEta(remainingMs)}"
+    }
+
+    private fun formatEta(valueMs: Long): String {
+        val totalSeconds = (valueMs / 1000L).coerceAtLeast(0L)
+        val minutes = totalSeconds / 60L
+        val seconds = totalSeconds % 60L
+        return "%02d:%02d".format(minutes, seconds)
     }
 
     private fun ProjectTranscodeTaskStage.toStageLabel(): String {
